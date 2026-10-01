@@ -1,113 +1,118 @@
 /* =========================================================
-   FORECAST!SANS — SAME END ANYWAY
-   V0.4 COMBAT UI
+   FORECAST!SANS
+   UI V0.6.1
 ========================================================= */
 
 * {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
 }
 
 html,
 body {
+    margin: 0;
+    padding: 0;
+
     width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #020202;
+    min-height: 100%;
+
+    background: #050505;
     color: #ffffff;
-    font-family: "Courier New", monospace;
-    touch-action: manipulation;
-    user-select: none;
+
+    font-family:
+        "Courier New",
+        monospace;
+
+    overscroll-behavior: none;
 }
 
 button {
     font: inherit;
 }
 
+body {
+    min-height: 100dvh;
+}
+
+
+/* =========================================================
+   GAME
+========================================================= */
+
 #game {
-    position: relative;
-    width: 100vw;
-    height: 100dvh;
-    overflow: hidden;
+    width: 100%;
+    min-height: 100dvh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow-x: hidden;
 
     background:
         radial-gradient(
-            circle at 50% 35%,
-            #210000 0%,
-            #0d0000 28%,
-            #040404 65%,
+            circle at top,
+            #160000 0%,
+            #070707 42%,
             #000000 100%
         );
 }
 
 
 /* =========================================================
-   CANVAS
-========================================================= */
-
-#gameCanvas {
-    position: absolute;
-    inset: 0;
-
-    width: 100%;
-    height: 100%;
-
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-}
-
-
-/* =========================================================
-   TOP HUD
+   HUD
 ========================================================= */
 
 #hud {
-    position: absolute;
+    display: grid;
 
-    top: max(14px, env(safe-area-inset-top));
-    left: 18px;
-    right: 18px;
+    grid-template-columns:
+        minmax(95px, 1fr)
+        minmax(160px, 2fr)
+        minmax(110px, 1fr);
 
+    align-items: center;
+
+    gap: 10px;
+
+    padding:
+        max(10px, env(safe-area-inset-top))
+        12px
+        8px;
+
+    border-bottom:
+        2px solid #5e0000;
+
+    background:
+        rgba(
+            0,
+            0,
+            0,
+            0.92
+        );
+}
+
+.hud-block {
     display: flex;
-    justify-content: space-between;
-    gap: 20px;
+    flex-direction: column;
 
-    pointer-events: none;
-
-    z-index: 10;
+    gap: 4px;
 }
 
-#forecastHUD,
-#enemyHUD {
-    width: min(43vw, 440px);
-
-    padding: 12px 14px;
-
-    border: 2px solid #ffffff;
-    background: rgba(0, 0, 0, 0.78);
-
-    box-shadow:
-        0 0 0 2px #000000,
-        0 0 18px rgba(255, 0, 0, 0.16);
+.enemy-block {
+    text-align: right;
 }
 
-.hud-name {
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 1.5px;
+.hud-small {
+    font-size: 10px;
+
+    letter-spacing: 1px;
+
+    opacity: 0.65;
 }
 
 #phaseLabel {
-    margin-top: 5px;
+    color: #ff3030;
 
-    color: #ff2929;
-
-    font-size: 20px;
-    font-weight: 900;
-
-    text-shadow:
-        0 0 8px rgba(255, 0, 0, 0.65);
+    font-size: 17px;
 }
 
 
@@ -117,38 +122,53 @@ button {
 
 #phaseTrack {
     display: flex;
+
+    justify-content: center;
     align-items: center;
 
-    gap: 5px;
+    gap: 4px;
 
-    margin-top: 9px;
+    overflow: hidden;
 }
 
 .phase-node {
-    min-width: 26px;
+    min-width: 25px;
 
-    padding: 3px 4px;
+    padding: 4px 3px;
 
-    border: 1px solid #555555;
-
-    color: #666666;
-
-    font-size: 10px;
-    font-weight: 900;
     text-align: center;
 
-    background: #080808;
+    font-size: 9px;
+
+    border:
+        1px solid #3b3b3b;
+
+    color: #666;
+
+    background: #090909;
+}
+
+.phase-node.passed {
+    color: #a0a0a0;
+
+    border-color: #777;
 }
 
 .phase-node.active {
     color: #ffffff;
 
-    border-color: #ff2222;
+    border-color: #ff3030;
 
-    background: #560000;
+    background: #5e0000;
 
     box-shadow:
-        0 0 8px rgba(255, 0, 0, 0.7);
+        0 0 10px
+        rgba(
+            255,
+            0,
+            0,
+            0.55
+        );
 }
 
 
@@ -156,32 +176,31 @@ button {
    ENEMY HP
 ========================================================= */
 
-#enemyHPBar {
+#enemyHealth {
     width: 100%;
-    height: 12px;
+    height: 8px;
 
-    margin-top: 10px;
+    border: 1px solid #666;
 
-    border: 1px solid #ffffff;
-    background: #111111;
+    background: #151515;
 
     overflow: hidden;
 }
 
-#enemyHPFill {
+#enemyHealthFill {
     width: 100%;
     height: 100%;
 
     background: #ffffff;
 
-    transition: width 180ms linear;
+    transition:
+        width 0.15s linear;
 }
 
-#enemyHPText {
-    margin-top: 5px;
+#enemyHealthText {
+    font-size: 9px;
 
-    font-size: 11px;
-    text-align: right;
+    opacity: 0.75;
 }
 
 
@@ -190,27 +209,60 @@ button {
 ========================================================= */
 
 #turnBanner {
-    position: absolute;
+    text-align: center;
 
-    top: 125px;
-    left: 50%;
+    padding: 6px;
 
-    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
 
-    padding: 7px 18px;
-
-    border: 1px solid #ffffff;
-
-    color: #ffffff;
-    background: rgba(0, 0, 0, 0.85);
-
-    font-size: 14px;
-    font-weight: 900;
     letter-spacing: 2px;
 
-    z-index: 12;
+    color: #ff3d3d;
 
-    pointer-events: none;
+    border-bottom:
+        1px solid #360000;
+
+    background:
+        rgba(
+            0,
+            0,
+            0,
+            0.86
+        );
+}
+
+
+/* =========================================================
+   BATTLE
+========================================================= */
+
+#battleArea {
+    position: relative;
+
+    width: 100%;
+
+    height:
+        clamp(
+            430px,
+            56dvh,
+            720px
+        );
+
+    min-height: 430px;
+
+    overflow: hidden;
+}
+
+#gameCanvas {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    touch-action: none;
+
+    image-rendering: pixelated;
 }
 
 
@@ -221,124 +273,73 @@ button {
 #phaseSplash {
     position: absolute;
 
-    top: 50%;
     left: 50%;
+    top: 50%;
 
     transform:
-        translate(-50%, -50%)
-        scale(0.8);
-
-    opacity: 0;
-
-    text-align: center;
+        translate(
+            -50%,
+            -50%
+        );
 
     pointer-events: none;
 
-    z-index: 30;
-}
+    font-size:
+        clamp(
+            28px,
+            8vw,
+            70px
+        );
 
-#phaseSplash.show {
-    animation:
-        phaseSplashAnimation 1.1s ease-out;
-}
+    font-weight: bold;
 
-#phaseSplashTop {
+    letter-spacing: 4px;
+
     color: #ffffff;
 
-    font-size: 15px;
-    font-weight: 900;
-
-    letter-spacing: 3px;
-}
-
-#phaseSplashMain {
-    margin-top: 7px;
-
-    color: #ff1c1c;
-
-    font-size: clamp(34px, 8vw, 76px);
-    font-weight: 900;
-
-    letter-spacing: 3px;
-
     text-shadow:
-        4px 4px #000000,
-        0 0 15px #ff0000;
-}
+        0 0 8px #ff0000,
+        0 0 24px #ff0000;
 
-@keyframes phaseSplashAnimation {
+    opacity: 0;
 
-    0% {
-        opacity: 0;
-        transform:
-            translate(-50%, -50%)
-            scale(1.5);
-    }
-
-    18% {
-        opacity: 1;
-    }
-
-    65% {
-        opacity: 1;
-        transform:
-            translate(-50%, -50%)
-            scale(1);
-    }
-
-    100% {
-        opacity: 0;
-        transform:
-            translate(-50%, -50%)
-            scale(0.92);
-    }
+    z-index: 10;
 }
 
 
 /* =========================================================
-   STAMINA HUD
+   STAMINA
 ========================================================= */
 
 #staminaHUD {
-    position: absolute;
+    padding:
+        7px 12px;
 
-    left: 18px;
-    bottom: 178px;
+    background: #050505;
 
-    width: min(340px, calc(100vw - 36px));
-
-    padding: 10px 12px;
-
-    border: 2px solid #ffffff;
-
-    background: rgba(0, 0, 0, 0.88);
-
-    z-index: 15;
-
-    pointer-events: none;
+    border-top:
+        1px solid #270000;
 }
 
-#staminaHeader {
+.meter-label {
     display: flex;
+
     justify-content: space-between;
 
-    font-size: 12px;
-    font-weight: 900;
+    margin-bottom: 4px;
+
+    font-size: 10px;
 
     letter-spacing: 1px;
 }
 
 #staminaBar {
-    position: relative;
+    height: 10px;
 
-    width: 100%;
-    height: 13px;
+    border:
+        1px solid #8a0000;
 
-    margin-top: 7px;
-
-    border: 1px solid #ffffff;
-
-    background: #151515;
+    background: #160000;
 
     overflow: hidden;
 }
@@ -347,39 +348,10 @@ button {
     width: 100%;
     height: 100%;
 
-    background: #e8e8e8;
-
-    transform-origin: left center;
+    background: #ff3030;
 
     transition:
-        width 140ms linear,
-        background 140ms linear;
-}
-
-#staminaHUD.low #staminaFill {
-    background: #ff2525;
-
-    box-shadow:
-        0 0 9px rgba(255, 0, 0, 0.85);
-}
-
-#staminaHUD.empty {
-    border-color: #ff2222;
-}
-
-#dodgeStatus {
-    margin-top: 7px;
-
-    color: #bcbcbc;
-
-    font-size: 10px;
-    font-weight: 900;
-
-    letter-spacing: 1px;
-}
-
-#staminaHUD.low #dodgeStatus {
-    color: #ff3a3a;
+        width 0.12s linear;
 }
 
 
@@ -387,35 +359,211 @@ button {
    DIALOGUE
 ========================================================= */
 
-#dialogueBox {
-    position: absolute;
-
-    left: 18px;
-    right: 18px;
-    bottom: 118px;
-
-    min-height: 48px;
-
+#dialogue {
     display: flex;
+
+    gap: 8px;
+
+    min-height: 42px;
+
     align-items: center;
 
-    padding: 9px 13px;
+    padding:
+        8px 12px;
 
-    border: 2px solid #ffffff;
+    border-top:
+        1px solid #2b2b2b;
 
-    background: rgba(0, 0, 0, 0.92);
+    border-bottom:
+        1px solid #2b2b2b;
 
-    font-size: 13px;
+    background: #000;
 
-    z-index: 15;
+    font-size: 12px;
 }
 
-#dialogueStar {
-    margin-right: 10px;
-
+.dialogue-star {
     color: #ff3030;
+}
 
-    font-weight: 900;
+
+/* =========================================================
+   ARSENAL
+========================================================= */
+
+#arsenal {
+    width: 100%;
+
+    border-top:
+        2px solid #820000;
+
+    background:
+        rgba(
+            4,
+            4,
+            4,
+            0.98
+        );
+
+    transition:
+        max-height 0.22s ease;
+}
+
+
+/* =========================================================
+   ARSENAL HEADER / CLOSE BUTTON
+========================================================= */
+
+.arsenal-toggle {
+    width: 100%;
+
+    min-height: 42px;
+
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    padding:
+        8px 14px;
+
+    border: 0;
+
+    border-bottom:
+        1px solid #420000;
+
+    background:
+        linear-gradient(
+            90deg,
+            #100000,
+            #050505,
+            #100000
+        );
+
+    color: #ffffff;
+
+    cursor: pointer;
+
+    touch-action: manipulation;
+}
+
+#arsenalTitle {
+    font-size: 13px;
+
+    font-weight: bold;
+
+    letter-spacing: 3px;
+}
+
+#arsenalToggleIcon {
+    width: 30px;
+    height: 26px;
+
+    display: grid;
+
+    place-items: center;
+
+    border:
+        1px solid #8d0000;
+
+    color: #ff4444;
+
+    font-size: 20px;
+    line-height: 1;
+
+    background: #090000;
+}
+
+
+/* =========================================================
+   OPEN/CLOSE ANIMATION
+========================================================= */
+
+#arsenalBody {
+    max-height: 520px;
+
+    overflow: hidden;
+
+    opacity: 1;
+
+    transition:
+        max-height 0.24s ease,
+        opacity 0.16s ease;
+}
+
+#arsenal.closed #arsenalBody {
+    max-height: 0;
+
+    opacity: 0;
+
+    pointer-events: none;
+}
+
+#arsenal.closed {
+    border-top-color: #3b0000;
+}
+
+
+/* =========================================================
+   CATEGORY NAV
+========================================================= */
+
+#categoryNav {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            4,
+            1fr
+        );
+
+    gap: 5px;
+
+    padding:
+        8px;
+}
+
+.category-button {
+    min-height: 40px;
+
+    padding: 6px 4px;
+
+    border:
+        1px solid #4d4d4d;
+
+    background: #090909;
+
+    color: #aaaaaa;
+
+    font-size:
+        clamp(
+            9px,
+            2.6vw,
+            12px
+        );
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    touch-action: manipulation;
+}
+
+.category-button.active {
+    color: #ffffff;
+
+    border-color: #ff3030;
+
+    background: #580000;
+
+    box-shadow:
+        inset 0 0 10px
+        rgba(
+            255,
+            0,
+            0,
+            0.25
+        );
 }
 
 
@@ -424,427 +572,253 @@ button {
 ========================================================= */
 
 #abilityPanel {
-    position: absolute;
+    display: grid;
 
-    top: 175px;
-    left: 18px;
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(
+                130px,
+                1fr
+            )
+        );
 
-    width: min(280px, 36vw);
-    max-height: calc(100vh - 390px);
+    gap: 6px;
+
+    max-height: 190px;
 
     overflow-y: auto;
 
-    border: 2px solid #ffffff;
+    -webkit-overflow-scrolling: touch;
 
-    background: rgba(0, 0, 0, 0.86);
-
-    z-index: 16;
-}
-
-#abilityHeader {
-    padding: 7px 10px;
-
-    border-bottom: 1px solid #ffffff;
-
-    color: #ff3333;
-
-    font-size: 12px;
-    font-weight: 900;
-
-    letter-spacing: 2px;
-}
-
-#abilityList {
-    display: flex;
-    flex-direction: column;
+    padding:
+        2px 8px 8px;
 }
 
 .ability-button {
-    width: 100%;
+    position: relative;
 
-    padding: 9px 10px;
+    min-height: 48px;
 
-    border: 0;
-    border-bottom: 1px solid #292929;
-
-    color: #dddddd;
-    background: #050505;
+    padding:
+        7px 8px;
 
     text-align: left;
 
+    border:
+        1px solid #444;
+
+    background: #080808;
+
+    color: #ffffff;
+
     cursor: pointer;
+
+    touch-action: manipulation;
 }
 
-.ability-button:hover,
+.ability-button:hover {
+    border-color: #8d0000;
+}
+
 .ability-button.selected {
-    color: #ffffff;
+    border-color: #ff3333;
+
     background: #3d0000;
+
+    box-shadow:
+        inset 0 0 12px
+        rgba(
+            255,
+            0,
+            0,
+            0.22
+        );
 }
 
 .ability-button.locked {
-    color: #555555;
-    background: #090909;
-    cursor: default;
+    color: #666;
+
+    border-color: #252525;
+
+    background: #050505;
 }
 
 .ability-name {
     display: block;
 
-    font-size: 12px;
-    font-weight: 900;
+    font-size: 11px;
+
+    font-weight: bold;
 }
 
-.ability-lock {
+.ability-info {
     display: block;
 
     margin-top: 3px;
 
-    color: #8b2727;
+    font-size: 8px;
 
-    font-size: 9px;
+    color: #999;
+}
+
+.ability-button.locked
+.ability-info {
+    color: #6b2020;
 }
 
 
 /* =========================================================
-   CATEGORY MENU
-========================================================= */
-
-#categoryMenu {
-    position: absolute;
-
-    left: 18px;
-    right: 18px;
-    bottom: 64px;
-
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-
-    gap: 6px;
-
-    z-index: 18;
-}
-
-.category-button {
-    min-height: 46px;
-
-    border: 2px solid #ffffff;
-
-    color: #ffffff;
-    background: #050505;
-
-    font-weight: 900;
-    font-size: 12px;
-
-    cursor: pointer;
-}
-
-.category-button:hover,
-.category-button.active {
-    border-color: #ff2424;
-
-    color: #ff3535;
-
-    background: #210000;
-
-    box-shadow:
-        inset 0 0 12px rgba(255, 0, 0, 0.14);
-}
-
-
-/* =========================================================
-   COMBAT CONTROLS
+   ACTION BUTTON
 ========================================================= */
 
 #controls {
-    position: absolute;
-
-    left: 18px;
-    right: 18px;
-    bottom: 8px;
-
-    height: 48px;
-
-    display: flex;
-    justify-content: space-between;
-    align-items: stretch;
-
-    gap: 8px;
-
-    z-index: 20;
-}
-
-#combatStatus {
-    flex: 1;
-
-    display: flex;
-    align-items: center;
-
-    gap: 12px;
-
-    padding: 6px 11px;
-
-    border: 2px solid #ffffff;
-
-    background: rgba(0, 0, 0, 0.94);
-}
-
-#combatStatusTitle {
-    color: #777777;
-
-    font-size: 9px;
-    font-weight: 900;
-}
-
-#combatStatusText {
-    color: #ffffff;
-
-    font-size: 12px;
-    font-weight: 900;
-}
-
-#actionArea {
-    min-width: min(370px, 45vw);
-
-    display: flex;
-
-    gap: 7px;
-}
-
-#selectedDisplay {
-    flex: 1;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 6px 10px;
-
-    border: 2px solid #ffffff;
-
-    color: #ffffff;
-    background: #050505;
-
-    font-size: 11px;
-    font-weight: 900;
+    padding:
+        0 8px
+        max(
+            10px,
+            env(safe-area-inset-bottom)
+        );
 }
 
 #actionButton {
-    min-width: 120px;
+    width: 100%;
 
-    padding: 6px 15px;
+    min-height: 48px;
 
-    border: 2px solid #ff2525;
+    border:
+        2px solid #ff3030;
+
+    background:
+        linear-gradient(
+            #5f0000,
+            #250000
+        );
 
     color: #ffffff;
-    background: #5d0000;
 
-    font-weight: 900;
+    font-size: 14px;
+    font-weight: bold;
+
+    letter-spacing: 2px;
 
     cursor: pointer;
 
-    box-shadow:
-        0 0 10px rgba(255, 0, 0, 0.22);
-}
-
-#actionButton:hover {
-    background: #8b0000;
+    touch-action: manipulation;
 }
 
 #actionButton:active {
-    transform: translateY(2px);
+    transform:
+        translateY(1px);
+
+    background: #800000;
 }
 
 #actionButton:disabled {
-    border-color: #444444;
-
-    color: #555555;
-    background: #111111;
-
-    box-shadow: none;
+    opacity: 0.35;
 
     cursor: default;
 }
 
 
 /* =========================================================
-   ERROR BOX
+   ERRORS
 ========================================================= */
 
 #errorBox {
-    position: absolute;
-
-    top: 150px;
-    right: 18px;
-
-    width: min(460px, calc(100vw - 36px));
-
     display: none;
 
-    padding: 12px;
+    margin: 0;
+
+    padding: 8px;
 
     white-space: pre-wrap;
 
-    border: 2px solid #ff2424;
+    background: #260000;
 
-    color: #ff6767;
-    background: rgba(20, 0, 0, 0.96);
+    color: #ff8080;
 
-    font-size: 11px;
-
-    z-index: 999;
+    font-size: 10px;
 }
 
 
 /* =========================================================
-   BATTLE EFFECTS
+   SMALL MOBILE
 ========================================================= */
 
-#game.shake {
-    animation: gameShake 180ms linear;
-}
-
-@keyframes gameShake {
-
-    0% {
-        transform: translate(0, 0);
-    }
-
-    25% {
-        transform: translate(-4px, 2px);
-    }
-
-    50% {
-        transform: translate(4px, -2px);
-    }
-
-    75% {
-        transform: translate(-2px, -2px);
-    }
-
-    100% {
-        transform: translate(0, 0);
-    }
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 700px) {
+@media (
+    max-width: 600px
+) {
 
     #hud {
-        left: 8px;
-        right: 8px;
-        gap: 6px;
-    }
+        grid-template-columns:
+            1fr
+            1.6fr
+            1fr;
 
-    #forecastHUD,
-    #enemyHUD {
-        width: 50%;
-        padding: 7px;
-    }
+        gap: 5px;
 
-    .hud-name {
-        font-size: 10px;
-    }
-
-    #phaseLabel {
-        font-size: 14px;
+        padding-left: 7px;
+        padding-right: 7px;
     }
 
     #phaseTrack {
         gap: 2px;
-        overflow: hidden;
     }
 
     .phase-node {
-        min-width: 18px;
-        padding: 2px;
+        min-width: 20px;
+
+        padding:
+            3px 1px;
 
         font-size: 7px;
     }
 
-    #turnBanner {
-        top: 105px;
+    #battleArea {
+        height: 52dvh;
 
-        font-size: 10px;
+        min-height: 390px;
     }
 
-    #abilityPanel {
-        top: 145px;
-        left: 8px;
-
-        width: 42vw;
-
-        max-height: calc(100vh - 350px);
-    }
-
-    .ability-button {
-        padding: 7px;
-    }
-
-    .ability-name {
-        font-size: 9px;
-    }
-
-    #staminaHUD {
-        left: 8px;
-        bottom: 171px;
-
-        width: calc(100vw - 16px);
-
-        padding: 7px;
-    }
-
-    #dialogueBox {
-        left: 8px;
-        right: 8px;
-        bottom: 116px;
-
-        min-height: 44px;
-
-        font-size: 10px;
-    }
-
-    #categoryMenu {
-        left: 8px;
-        right: 8px;
-        bottom: 62px;
-
+    #categoryNav {
         gap: 3px;
+
+        padding:
+            6px;
     }
 
     .category-button {
-        min-height: 43px;
+        min-height: 37px;
 
-        padding: 3px;
-
-        font-size: 8px;
-    }
-
-    #controls {
-        left: 8px;
-        right: 8px;
-        bottom: 7px;
-
-        height: 48px;
-    }
-
-    #combatStatus {
-        display: none;
-    }
-
-    #actionArea {
-        min-width: 100%;
-    }
-
-    #selectedDisplay {
         font-size: 9px;
     }
 
-    #actionButton {
-        min-width: 105px;
+    #abilityPanel {
+        grid-template-columns:
+            repeat(
+                2,
+                1fr
+            );
+
+        max-height: 160px;
+
+        gap: 4px;
+
+        padding:
+            0 6px 6px;
+    }
+
+    .ability-button {
+        min-height: 44px;
+
+        padding: 6px;
+    }
+
+    #dialogue {
+        min-height: 38px;
+
+        padding: 6px 9px;
 
         font-size: 10px;
     }
@@ -853,36 +827,25 @@ button {
 
 
 /* =========================================================
-   SHORT LANDSCAPE SCREENS
+   LANDSCAPE PHONE
 ========================================================= */
 
-@media (max-height: 600px) {
+@media (
+    max-height: 600px
+)
+and
+(
+    orientation: landscape
+) {
+
+    #battleArea {
+        height: 62dvh;
+
+        min-height: 300px;
+    }
 
     #abilityPanel {
-        top: 125px;
-        max-height: calc(100vh - 300px);
-    }
-
-    #staminaHUD {
-        bottom: 151px;
-    }
-
-    #dialogueBox {
-        bottom: 101px;
-        min-height: 40px;
-    }
-
-    #categoryMenu {
-        bottom: 53px;
-    }
-
-    .category-button {
-        min-height: 39px;
-    }
-
-    #controls {
-        bottom: 5px;
-        height: 42px;
+        max-height: 110px;
     }
 
 }
