@@ -1,102 +1,149 @@
-/* =========================================
-   FORECAST!SANS — TECHNIQUES V0.3
-========================================= */
+/* =========================================================
+   FORECAST!SANS — SAME END ANYWAY
+   V1 TECHNIQUE SYSTEM
 
-const Techniques = (() => {
+   Handles:
+   - Technique unlock phases
+   - Selection
+   - Cooldowns
+   - Drag/release target data
+   - Activation events
+
+   battle.js handles visuals, collision and damage.
+========================================================= */
+
+const ForecastTechniques = (() => {
+    "use strict";
+
+
+    /* =====================================================
+       TECHNIQUE DATABASE
+    ===================================================== */
 
     const TECHNIQUES = {
 
         "BONES": {
-            requiredPhase: "1",
+            name: "BONES",
+            phase: "1",
             cooldown: 550,
             attack: "bones",
-            description:
-                "Launches a fast bone attack toward the protagonist."
+            description: "Launches pixel-bone projectiles."
         },
 
         "BONE WALL": {
-            requiredPhase: "1.5",
+            name: "BONE WALL",
+            phase: "1.5",
             cooldown: 2200,
             attack: "boneWall",
-            description:
-                "Predicts an escape route and raises a bone wall."
+            description: "Bones erupt around the aimed area."
         },
 
         "ILLUSIONS": {
-            requiredPhase: "2",
+            name: "ILLUSIONS",
+            phase: "2",
             cooldown: 3600,
             attack: "illusions",
-            description:
-                "Creates false attacks to confuse the protagonist."
+            description: "Creates false targets and visual deception."
         },
 
         "CONSTRUCTS": {
-            requiredPhase: "2.5",
+            name: "CONSTRUCTS",
+            phase: "2.5",
             cooldown: 3200,
             attack: "constructs",
-            description:
-                "Creates solid red-black energy constructs."
+            description: "Summons constructs that attack independently."
         },
 
         "GASTER": {
-            requiredPhase: "3",
+            name: "GASTER",
+            phase: "3",
             cooldown: 4300,
             attack: "gaster",
-            description:
-                "Summons a Gaster construct and charges an energy attack."
+            description: "Charges a powerful energy attack."
         },
 
         "FORECAST TRAP": {
-            requiredPhase: "3.5",
+            name: "FORECAST TRAP",
+            phase: "3.5",
             cooldown: 4700,
             attack: "forecastTrap",
-            description:
-                "Marks the protagonist's predicted future position."
+            description: "Predicts movement and places a delayed trap."
         },
 
         "CROSSFIRE": {
-            requiredPhase: "4",
+            name: "CROSSFIRE",
+            phase: "4",
             cooldown: 5600,
             attack: "crossfire",
-            description:
-                "Attacks the target from several directions."
+            description: "Attacks the aimed location from several directions."
         },
 
         "FALSE FUTURE": {
-            requiredPhase: "4.5",
+            name: "FALSE FUTURE",
+            phase: "4.5",
             cooldown: 6500,
             attack: "falseFuture",
-            description:
-                "Shows a fake prediction before striking the real position."
+            description: "Shows a false warning before the real attack."
         },
 
         "INEVITABLE": {
-            requiredPhase: "5",
+            name: "INEVITABLE",
+            phase: "5",
             cooldown: 8500,
             attack: "inevitable",
-            description:
-                "A Phase 5 pattern that reacts to the protagonist's movement."
+            description: "Forecast's Phase 5 prediction sequence."
         }
-
     };
 
+
+    const ORDER = [
+        "BONES",
+        "BONE WALL",
+        "ILLUSIONS",
+        "CONSTRUCTS",
+        "GASTER",
+        "FORECAST TRAP",
+        "CROSSFIRE",
+        "FALSE FUTURE",
+        "INEVITABLE"
+    ];
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     let selected = "BONES";
 
     const lastUsed = {};
 
 
-    /* =====================================
-       INFORMATION
-    ===================================== */
+    /* =====================================================
+       HELPERS
+    ===================================================== */
 
-    function getList() {
-        return Object.keys(TECHNIQUES);
+    function normalize(name) {
+        return String(name || "")
+            .trim()
+            .toUpperCase();
     }
 
 
     function getData(name) {
-        return TECHNIQUES[name] || null;
+        return (
+            TECHNIQUES[
+                normalize(name)
+            ] || null
+        );
+    }
+
+
+    function getList() {
+        return ORDER.map(
+            name => ({
+                ...TECHNIQUES[name]
+            })
+        );
     }
 
 
@@ -105,14 +152,18 @@ const Techniques = (() => {
     }
 
 
-    /* =====================================
-       UNLOCKS
-    ===================================== */
+    function getSelectedData() {
+        return getData(selected);
+    }
+
+
+    /* =====================================================
+       UNLOCK CHECK
+    ===================================================== */
 
     function isUnlocked(name) {
-
         const technique =
-            TECHNIQUES[name];
+            getData(name);
 
 
         if (!technique) {
@@ -124,48 +175,53 @@ const Techniques = (() => {
             typeof ForecastPhases ===
             "undefined"
         ) {
-            return false;
+            return (
+                technique.phase ===
+                "1"
+            );
         }
 
 
         return ForecastPhases
             .isPhaseUnlocked(
-                technique.requiredPhase
+                technique.phase
             );
     }
 
 
-    /* =====================================
+    /* =====================================================
        SELECT
-    ===================================== */
+    ===================================================== */
 
     function select(name) {
-
         const technique =
-            TECHNIQUES[name];
+            getData(name);
 
 
         if (!technique) {
-            return false;
-        }
-
-
-        if (!isUnlocked(name)) {
-
-            announce(
-                `${name} unlocks at Phase ${technique.requiredPhase}.`
+            emitMessage(
+                "Unknown technique."
             );
 
             return false;
         }
 
 
-        selected = name;
+        if (
+            !isUnlocked(
+                technique.name
+            )
+        ) {
+            emitMessage(
+                `LOCKED — PHASE ${technique.phase}`
+            );
+
+            return false;
+        }
 
 
-        announce(
-            `${name} selected.`
-        );
+        selected =
+            technique.name;
 
 
         window.dispatchEvent(
@@ -173,8 +229,7 @@ const Techniques = (() => {
                 "forecast-technique-selected",
                 {
                     detail: {
-                        name,
-                        data: technique
+                        ...technique
                     }
                 }
             )
@@ -185,16 +240,15 @@ const Techniques = (() => {
     }
 
 
-    /* =====================================
+    /* =====================================================
        COOLDOWN
-    ===================================== */
+    ===================================================== */
 
     function getCooldownRemaining(
         name = selected
     ) {
-
         const technique =
-            TECHNIQUES[name];
+            getData(name);
 
 
         if (!technique) {
@@ -202,43 +256,28 @@ const Techniques = (() => {
         }
 
 
-        const previous =
-            lastUsed[name] || 0;
-
-
-        const elapsed =
-            performance.now() -
-            previous;
+        const usedAt =
+            lastUsed[
+                technique.name
+            ] || 0;
 
 
         return Math.max(
             0,
             technique.cooldown -
-            elapsed
+            (
+                performance.now() -
+                usedAt
+            )
         );
     }
 
 
-    function canActivate(
+    function canUse(
         name = selected
     ) {
-
-        return (
-            isUnlocked(name) &&
-            getCooldownRemaining(name)
-            <= 0
-        );
-    }
-
-
-    /* =====================================
-       ACTIVATE
-    ===================================== */
-
-    function activate() {
-
         const technique =
-            TECHNIQUES[selected];
+            getData(name);
 
 
         if (!technique) {
@@ -246,41 +285,96 @@ const Techniques = (() => {
         }
 
 
-        if (!isUnlocked(selected)) {
-
-            announce(
-                `${selected} is locked.`
-            );
-
+        if (
+            !isUnlocked(
+                technique.name
+            )
+        ) {
             return false;
         }
 
 
-        if (!canActivate(selected)) {
-
-            const seconds =
-                Math.ceil(
-                    getCooldownRemaining(
-                        selected
-                    ) / 1000
-                );
+        return (
+            getCooldownRemaining(
+                technique.name
+            ) <= 0
+        );
+    }
 
 
-            announce(
-                `${selected} recovering: ${seconds}s`
-            );
+    /* =====================================================
+       ACTIVATE
 
-            return false;
+       Called when the player releases their drag.
+
+       Example target:
+       {
+           x: 420,
+           y: 310
+       }
+    ===================================================== */
+
+    function activate(
+        target = null,
+        name = selected
+    ) {
+        const technique =
+            getData(name);
+
+
+        if (!technique) {
+            return {
+                activated: false,
+                reason: "unknown"
+            };
         }
 
 
-        lastUsed[selected] =
-            performance.now();
+        if (
+            !isUnlocked(
+                technique.name
+            )
+        ) {
+            emitMessage(
+                `LOCKED — PHASE ${technique.phase}`
+            );
+
+            return {
+                activated: false,
+                reason: "locked"
+            };
+        }
+
+
+        const remaining =
+            getCooldownRemaining(
+                technique.name
+            );
+
+
+        if (
+            remaining > 0
+        ) {
+            return {
+                activated: false,
+                reason: "cooldown",
+                remaining
+            };
+        }
+
+
+        selected =
+            technique.name;
+
+
+        lastUsed[
+            technique.name
+        ] = performance.now();
 
 
         /*
-            battle.js listens for this
-            and creates the actual attack.
+            Battle receives BOTH the technique
+            and the exact drag-release target.
         */
 
         window.dispatchEvent(
@@ -288,50 +382,69 @@ const Techniques = (() => {
                 "forecast-technique-activate",
                 {
                     detail: {
-
                         name:
-                            selected,
+                            technique.name,
 
                         attack:
-                            technique.attack
+                            technique.attack,
 
+                        target:
+                            target
+                                ? {
+                                    x: target.x,
+                                    y: target.y
+                                }
+                                : null
                     }
                 }
             )
         );
 
 
-        return true;
+        return {
+            activated: true,
+            technique:
+                technique.name,
+            attack:
+                technique.attack
+        };
     }
 
 
-    /* =====================================
+    /* =====================================================
        RESET
-    ===================================== */
+    ===================================================== */
 
     function reset() {
-
         selected = "BONES";
 
 
-        Object.keys(
-            lastUsed
-        ).forEach(
-            key => {
+        for (
+            const key of
+            Object.keys(lastUsed)
+        ) {
+            delete lastUsed[key];
+        }
 
-                delete lastUsed[key];
 
-            }
+        window.dispatchEvent(
+            new CustomEvent(
+                "forecast-technique-selected",
+                {
+                    detail: {
+                        ...TECHNIQUES.BONES
+                    }
+                }
+            )
         );
     }
 
 
-    /* =====================================
-       MESSAGE
-    ===================================== */
+    /* =====================================================
+       MESSAGE EVENT
+    ===================================================== */
 
-    function announce(message) {
-
+    function emitMessage(message) {
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-message",
@@ -345,26 +458,26 @@ const Techniques = (() => {
     }
 
 
-    /* =====================================
+    /* =====================================================
        PUBLIC API
-    ===================================== */
+    ===================================================== */
 
     return {
-
         getList,
         getData,
+
         getSelected,
+        getSelectedData,
 
         isUnlocked,
 
         select,
         activate,
 
-        canActivate,
+        canUse,
         getCooldownRemaining,
 
         reset
-
     };
 
 })();
