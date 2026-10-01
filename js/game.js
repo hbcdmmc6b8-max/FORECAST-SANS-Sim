@@ -1372,6 +1372,19 @@
 
 
         /* =================================================
+           OWNER
+        ================================================= */
+        if (selectedCategory === "OWNER") {
+            if (!ownerUnlocked) return;
+            const ability = OWNER_ABILITIES[selectedOwner];
+            if (!ability) return;
+            window.dispatchEvent(new CustomEvent("forecast-owner-ability", {
+                detail: { attack: ability.attack, target }
+            }));
+            return;
+        }
+
+        /* =================================================
            FORECAST
         ================================================= */
 
