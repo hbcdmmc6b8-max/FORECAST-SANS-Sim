@@ -346,6 +346,8 @@ const ForecastBattle = (() => {
             0
         );
 
+        ctx.imageSmoothingEnabled = false;
+
 
         /*
             Leave room ABOVE the box
@@ -638,8 +640,8 @@ const ForecastBattle = (() => {
                     image.offsetX,
                 forecast.y +
                     image.offsetY,
-                132,
-                75
+                116,
+                66
             );
 
             ctx.restore();
@@ -650,8 +652,8 @@ const ForecastBattle = (() => {
             frameName,
             forecast.x,
             forecast.y,
-            145,
-            82
+            124,
+            70
         );
 
 
@@ -750,7 +752,7 @@ const ForecastBattle = (() => {
             SPRITE_CELL_H,
 
             x - drawW / 2,
-            y - drawH / 2,
+            y - drawH * 0.56,
 
             drawW,
             drawH
@@ -958,6 +960,14 @@ const ForecastBattle = (() => {
                 targetY - y
             );
 
+
+        effects.push({
+            type: "muzzleFlash",
+            x, y,
+            angle: Math.atan2(targetY - y, targetX - x),
+            created: now(),
+            life: type === "dmr" ? 120 : 70
+        });
 
         playerProjectiles.push({
             x,
@@ -3745,19 +3755,18 @@ const ForecastBattle = (() => {
                     break;
 
 
-                case "construct":
-
-                    ctx.fillStyle =
-                        "#ff2020";
-
-                    ctx.fillRect(
-                        projectile.x - 4,
-                        projectile.y - 4,
-                        8,
-                        8
-                    );
-
+                case "construct": {
+                    const a = Math.atan2(projectile.vy, projectile.vx);
+                    ctx.translate(projectile.x, projectile.y);
+                    ctx.rotate(a);
+                    ctx.strokeStyle = "#ff2020";
+                    ctx.fillStyle = "#090909";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(8,0); ctx.lineTo(0,-6); ctx.lineTo(-8,0); ctx.lineTo(0,6); ctx.closePath();
+                    ctx.fill(); ctx.stroke();
                     break;
+                }
 
 
                 case "illusionShot":
@@ -4287,6 +4296,17 @@ const ForecastBattle = (() => {
             switch (
                 effect.type
             ) {
+
+                case "muzzleFlash": {
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.translate(effect.x, effect.y);
+                    ctx.rotate(effect.angle || 0);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, -2, 10 + progress * 9, 4);
+                    ctx.fillStyle = "#ff2020";
+                    ctx.fillRect(2, -4, 6, 8);
+                    break;
+                }
 
                 case "aimLine":
 
