@@ -4882,6 +4882,40 @@ const ForecastBattle = (() => {
         );
 
 
+        window.addEventListener("forecast-owner-ability", event => {
+            const d=event.detail||{}, target=sanitizeTarget(d.target);
+            switch(d.attack){
+                case "adminEye":
+                    setAnimation("eye",650);
+                    for(let i=1;i<=6;i++){const p=predictProtagonist(i*.16);effects.push({type:"prediction",x:p.x,y:p.y,created:now(),life:1100});}
+                    break;
+                case "timelineDelete":
+                    setAnimation("eye",650); enemyProjectiles.length=0;
+                    effects.push({type:"nullBurst",x:forecast.x,y:forecast.y,created:now(),life:700});
+                    emitMessage("TIMELINE CLEARED"); break;
+                case "phaseShift":
+                    if(typeof ForecastPhases!=="undefined") ForecastPhases.debugAdvance();
+                    break;
+                case "omniforecast":
+                    setAnimation("eye",900);
+                    [-.35,0,.35].forEach(offset=>{for(let i=1;i<=5;i++){const p=predictProtagonist(i*.18);effects.push({type:"prediction",x:clamp(p.x+offset*i*18,arena.left+10,arena.right-10),y:p.y,created:now()+i*35,life:1400});}});
+                    break;
+                case "redlineScythe":
+                    setAnimation("scythe_swing",600);
+                    for(let i=-2;i<=2;i++) slashes.push({x:forecast.x,y:forecast.y+20,radius:90+i*13,angle:Math.atan2(target.y-forecast.y,target.x-forecast.x)+i*.13,width:12,damage:12,created:now()+Math.abs(i)*45,life:650,hit:false});
+                    break;
+                case "devBones":
+                    setAnimation("bones",800);
+                    for(let i=0;i<18;i++){const a=(TAU/18)*i;createPlayerProjectile({x:target.x+Math.cos(a)*120,y:target.y+Math.sin(a)*120,targetX:target.x,targetY:target.y,speed:360,radius:6,damage:4,type:"bone",life:1500});}
+                    break;
+                case "sameEnd":
+                    setAnimation("phase_change",1300);
+                    for(let i=0;i<8;i++){const a=TAU*i/8;effects.push({type:"inevitableMark",x:target.x+Math.cos(a)*70,y:target.y+Math.sin(a)*70,created:now()+i*45,life:900});}
+                    setTimeout(()=>inevitableAttack(target),500);
+                    break;
+            }
+        });
+
         window.addEventListener(
             "forecast-phase-change",
             () => {
