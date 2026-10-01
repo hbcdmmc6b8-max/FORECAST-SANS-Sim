@@ -5,10 +5,10 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, user-scalable=no"
+        content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
     >
 
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#050505">
 
     <title>FORECAST!SANS — Same End Anyway</title>
 
@@ -17,19 +17,16 @@
 
 <body>
 
-<div id="game">
+<main id="game">
 
-    <!-- MAIN GAME CANVAS -->
+    <!-- ACTUAL BATTLE -->
     <canvas id="gameCanvas"></canvas>
 
 
-    <!-- =========================
-         TOP HUD
-    ========================== -->
-
+    <!-- TOP HUD -->
     <header id="hud">
 
-        <section class="hud-side boss-hud">
+        <section id="forecastHUD">
 
             <div class="hud-name">
                 FORECAST!SANS
@@ -56,18 +53,18 @@
         </section>
 
 
-        <section class="hud-side enemy-hud">
+        <section id="enemyHUD">
 
-            <div id="enemyName" class="hud-name">
-                UNKNOWN
+            <div class="hud-name">
+                PROTAGONIST
             </div>
 
-            <div class="hp-shell">
-                <div id="enemyHP"></div>
+            <div id="enemyHPBar">
+                <div id="enemyHPFill"></div>
             </div>
 
-            <div id="enemyStatus">
-                DETERMINATION
+            <div id="enemyHPText">
+                100 / 100
             </div>
 
         </section>
@@ -75,27 +72,27 @@
     </header>
 
 
-    <!-- =========================
-         PHASE TRANSITION
-    ========================== -->
-
-    <div id="phaseTransition">
-
-        <div id="phaseTransitionSmall">
-            HIT CONFIRMED
-        </div>
-
-        <div id="phaseTransitionBig">
-            PHASE 1.5
-        </div>
-
+    <!-- TURN DISPLAY -->
+    <div id="turnBanner">
+        FORECAST TURN
     </div>
 
 
-    <!-- =========================
-         DIALOGUE
-    ========================== -->
+    <!-- PHASE CHANGE -->
+    <section id="phaseSplash">
 
+        <div id="phaseSplashTop">
+            HIT CONFIRMED
+        </div>
+
+        <div id="phaseSplashMain">
+            PHASE 1.5
+        </div>
+
+    </section>
+
+
+    <!-- DIALOGUE -->
     <section id="dialogueBox">
 
         <span id="dialogueStar">*</span>
@@ -107,53 +104,45 @@
     </section>
 
 
-    <!-- =========================
-         SUB MENU
-    ========================== -->
-
+    <!-- ABILITY SELECTOR -->
     <section id="abilityPanel">
 
-        <div id="abilityTitle">
+        <div id="abilityHeader">
             ARSENAL
         </div>
 
-        <div id="abilityOptions">
-            <!-- JavaScript generates buttons here -->
-        </div>
+        <div id="abilityList"></div>
 
     </section>
 
 
-    <!-- =========================
-         MAIN MENU
-    ========================== -->
-
-    <nav id="battleMenu">
+    <!-- FOUR MAIN CATEGORIES -->
+    <nav id="categoryMenu">
 
         <button
-            class="menu-button active"
-            data-menu="weapon"
+            class="category-button active"
+            data-category="weapon"
         >
             WEAPON
         </button>
 
         <button
-            class="menu-button"
-            data-menu="eyes"
+            class="category-button"
+            data-category="eyes"
         >
             EYES
         </button>
 
         <button
-            class="menu-button"
-            data-menu="technique"
+            class="category-button"
+            data-category="technique"
         >
             TECHNIQUE
         </button>
 
         <button
-            class="menu-button"
-            data-menu="forecast"
+            class="category-button"
+            data-category="forecast"
         >
             FORECAST
         </button>
@@ -161,41 +150,38 @@
     </nav>
 
 
-    <!-- =========================
-         MOBILE MOVEMENT
-    ========================== -->
-
-    <section id="mobileControls">
+    <!-- MOBILE CONTROLS -->
+    <section id="controls">
 
         <div id="dpad">
 
             <button
+                id="upButton"
                 class="move-button"
-                id="moveUp"
                 aria-label="Move up"
             >
                 ▲
             </button>
 
             <button
+                id="leftButton"
                 class="move-button"
-                id="moveLeft"
                 aria-label="Move left"
             >
                 ◀
             </button>
 
             <button
+                id="downButton"
                 class="move-button"
-                id="moveDown"
                 aria-label="Move down"
             >
                 ▼
             </button>
 
             <button
+                id="rightButton"
                 class="move-button"
-                id="moveRight"
                 aria-label="Move right"
             >
                 ▶
@@ -204,41 +190,37 @@
         </div>
 
 
-        <button id="attackButton">
-            ATTACK
-        </button>
+        <div id="actionArea">
+
+            <div id="selectedDisplay">
+                GLOCK
+            </div>
+
+            <button id="actionButton">
+                ATTACK
+            </button>
+
+        </div>
 
     </section>
 
 
-    <!-- =========================
-         DEBUG / STATE DISPLAY
-    ========================== -->
+    <!-- DEVELOPMENT ERROR BOX
 
-    <aside id="battleState">
+         If one of our JS files breaks,
+         we'll display the error here instead
+         of getting another mysterious blank page.
+    -->
+    <pre id="errorBox"></pre>
 
-        <span id="turnText">
-            YOUR TURN
-        </span>
-
-        <span class="separator">
-            /
-        </span>
-
-        <span id="selectedAbility">
-            GLOCK
-        </span>
-
-    </aside>
-
-</div>
+</main>
 
 
-<!-- =============================
-     GAME MODULES
-
-     Order matters.
-============================== -->
+<!--
+    IMPORTANT:
+    These paths now EXACTLY match the repo:
+    /js/file.js
+-->
 
 <script src="./js/phases.js"></script>
 <script src="./js/weapons.js"></script>
@@ -246,6 +228,26 @@
 <script src="./js/techniques.js"></script>
 <script src="./js/battle.js"></script>
 <script src="./js/game.js"></script>
+
+
+<!-- Show JS errors directly on iPhone -->
+<script>
+    window.addEventListener("error", function (event) {
+        const box = document.getElementById("errorBox");
+
+        if (!box) return;
+
+        box.style.display = "block";
+
+        box.textContent =
+            "GAME ERROR\n\n" +
+            event.message +
+            "\n\n" +
+            (event.filename || "") +
+            ":" +
+            (event.lineno || "");
+    });
+</script>
 
 </body>
 </html>
