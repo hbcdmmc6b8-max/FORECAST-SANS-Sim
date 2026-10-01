@@ -1692,6 +1692,13 @@ const ForecastBattle = (() => {
 
                 positions.forEach(
                     (position, index) => {
+                        effects.push({
+                            type: "crossfireWarning",
+                            x1: position.x, y1: position.y,
+                            x2: target.x, y2: target.y,
+                            created: now() + index * 70,
+                            life: 320
+                        });
 
                         setTimeout(() => {
 
@@ -1714,7 +1721,7 @@ const ForecastBattle = (() => {
                                     "crossfire"
                             });
 
-                        }, index * 90);
+                        }, 320 + index * 70);
                     }
                 );
 
@@ -1754,7 +1761,7 @@ const ForecastBattle = (() => {
 
 
                 effects.push({
-                    type: "warning",
+                    type: "falseWarning",
 
                     x: fake.x,
                     y: fake.y,
@@ -4189,18 +4196,19 @@ const ForecastBattle = (() => {
 
 
             ctx.beginPath();
-
-            ctx.moveTo(
-                beam.x1,
-                beam.y1
-            );
-
-            ctx.lineTo(
-                beam.x2,
-                beam.y2
-            );
-
+            ctx.moveTo(beam.x1, beam.y1);
+            ctx.lineTo(beam.x2, beam.y2);
             ctx.stroke();
+
+            if (time >= beam.activeAt) {
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = beam.type === "inevitable" ? "#ff2020" : "#ff3030";
+                ctx.lineWidth = Math.max(2, beam.width * .28);
+                ctx.beginPath();
+                ctx.moveTo(beam.x1, beam.y1);
+                ctx.lineTo(beam.x2, beam.y2);
+                ctx.stroke();
+            }
 
 
             ctx.restore();
@@ -4335,6 +4343,30 @@ const ForecastBattle = (() => {
                     break;
 
 
+                case "crossfireWarning": {
+                    if (time < effect.created) break;
+                    ctx.globalAlpha = Math.max(0, 1 - progress) * .65;
+                    ctx.strokeStyle = "#ff2020";
+                    ctx.setLineDash([6,5]);
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(effect.x1,effect.y1); ctx.lineTo(effect.x2,effect.y2); ctx.stroke();
+                    ctx.setLineDash([]);
+                    break;
+                }
+
+                case "falseWarning": {
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.strokeStyle = "#ff2020";
+                    ctx.lineWidth = 2;
+                    const r = 24 + progress * 24;
+                    ctx.beginPath(); ctx.arc(effect.x,effect.y,r,0,TAU); ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(effect.x-r*.7,effect.y-r*.7); ctx.lineTo(effect.x+r*.7,effect.y+r*.7);
+                    ctx.moveTo(effect.x+r*.7,effect.y-r*.7); ctx.lineTo(effect.x-r*.7,effect.y+r*.7);
+                    ctx.stroke();
+                    break;
+                }
+
                 case "warning":
                 case "realWarning":
 
@@ -4384,8 +4416,20 @@ const ForecastBattle = (() => {
                     break;
 
 
+                case "inevitableMark": {
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.translate(effect.x,effect.y);
+                    ctx.rotate(progress * Math.PI);
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.shadowBlur = 12; ctx.shadowColor = "#ff2020";
+                    ctx.lineWidth = 2;
+                    const r = 10 + progress * 25;
+                    ctx.strokeRect(-r,-r,r*2,r*2);
+                    ctx.beginPath(); ctx.arc(0,0,r*.62,0,TAU); ctx.stroke();
+                    break;
+                }
+
                 case "prediction":
-                case "inevitableMark":
 
                     ctx.globalAlpha =
                         1 - progress;
