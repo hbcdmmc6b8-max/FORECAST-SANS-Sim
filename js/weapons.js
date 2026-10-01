@@ -1,86 +1,149 @@
-/* =========================================
-   FORECAST!SANS — WEAPON SYSTEM V0.3
-========================================= */
+/* =========================================================
+   FORECAST!SANS — SAME END ANYWAY
+   V1 WEAPON SYSTEM — DRAG TARGET PATCHED
 
-const Weapons = (() => {
+   Flow:
+   select weapon
+        ↓
+   drag on battle screen
+        ↓
+   release
+        ↓
+   game.js sends target
+        ↓
+   weapons.js sends target to battle.js
+========================================================= */
 
-    /*
-        All values here are GAME values.
+const ForecastWeapons = (() => {
+    "use strict";
 
-        Battle.js will decide how the
-        attacks actually look and move.
-    */
+
+    /* =====================================================
+       WEAPONS
+    ===================================================== */
 
     const WEAPONS = {
 
         "GLOCK": {
-            requiredPhase: "1",
+            name: "GLOCK",
+            phase: "1",
             cooldown: 300,
-            description: "Fast, accurate basic shot.",
-            attack: "glock"
+            attack: "glock",
+
+            description:
+                "Fast precision shot."
         },
 
         "SMG": {
-            requiredPhase: "1.5",
+            name: "SMG",
+            phase: "1.5",
             cooldown: 700,
-            description: "Rapid short burst.",
-            attack: "smg"
+            attack: "smg",
+
+            description:
+                "Rapid stream of smaller projectiles."
         },
 
         "AR": {
-            requiredPhase: "2",
+            name: "AR",
+            phase: "2",
             cooldown: 650,
-            description: "Controlled three-shot burst.",
-            attack: "ar"
+            attack: "ar",
+
+            description:
+                "Controlled burst with heavier tracers."
         },
 
         "DMR": {
-            requiredPhase: "2.5",
+            name: "DMR",
+            phase: "2.5",
             cooldown: 1000,
-            description: "Telegraphed precision attack.",
-            attack: "dmr"
+            attack: "dmr",
+
+            description:
+                "High-speed precision projectile."
         },
 
         "SHOTGUN": {
-            requiredPhase: "3",
+            name: "SHOTGUN",
+            phase: "3",
             cooldown: 950,
-            description: "Wide close-range spread.",
-            attack: "shotgun"
+            attack: "shotgun",
+
+            description:
+                "Fires a spread of projectiles."
         },
 
         "GASTER HAND": {
-            requiredPhase: "3.5",
+            name: "GASTER HAND",
+            phase: "3.5",
             cooldown: 1400,
-            description: "Charges supernatural energy before firing.",
-            attack: "gasterHand"
+            attack: "gasterHand",
+
+            description:
+                "Charges and releases an energy beam."
         },
 
         "EXECUTION SCYTHE": {
-            requiredPhase: "4",
+            name: "EXECUTION SCYTHE",
+            phase: "4",
             cooldown: 1250,
-            description: "Large close-range sweeping attack.",
-            attack: "scythe"
-        }
+            attack: "scythe",
 
+            description:
+                "Summons Forecast's scythe for a sweeping attack."
+        }
     };
 
+
+    const ORDER = [
+        "GLOCK",
+        "SMG",
+        "AR",
+        "DMR",
+        "SHOTGUN",
+        "GASTER HAND",
+        "EXECUTION SCYTHE"
+    ];
+
+
+    /* =====================================================
+       STATE
+    ===================================================== */
 
     let selected = "GLOCK";
 
     const lastUsed = {};
 
 
-    /* =====================================
-       INFORMATION
-    ===================================== */
+    /* =====================================================
+       HELPERS
+    ===================================================== */
 
-    function getList() {
-        return Object.keys(WEAPONS);
+    function normalize(name) {
+        return String(
+            name || ""
+        )
+            .trim()
+            .toUpperCase();
     }
 
 
     function getData(name) {
-        return WEAPONS[name] || null;
+        return (
+            WEAPONS[
+                normalize(name)
+            ] || null
+        );
+    }
+
+
+    function getList() {
+        return ORDER.map(
+            name => ({
+                ...WEAPONS[name]
+            })
+        );
     }
 
 
@@ -89,14 +152,20 @@ const Weapons = (() => {
     }
 
 
-    /* =====================================
-       UNLOCKS
-    ===================================== */
+    function getSelectedData() {
+        return getData(
+            selected
+        );
+    }
+
+
+    /* =====================================================
+       UNLOCK CHECK
+    ===================================================== */
 
     function isUnlocked(name) {
-
         const weapon =
-            WEAPONS[name];
+            getData(name);
 
 
         if (!weapon) {
@@ -108,53 +177,53 @@ const Weapons = (() => {
             typeof ForecastPhases ===
             "undefined"
         ) {
-            return false;
+            return (
+                weapon.phase ===
+                "1"
+            );
         }
 
 
         return ForecastPhases
             .isPhaseUnlocked(
-                weapon.requiredPhase
+                weapon.phase
             );
     }
 
 
-    /* =====================================
+    /* =====================================================
        SELECT
-    ===================================== */
+    ===================================================== */
 
     function select(name) {
-
         const weapon =
-            WEAPONS[name];
+            getData(name);
 
 
         if (!weapon) {
-            return false;
-        }
-
-
-        /*
-            Locked weapons can appear in
-            the menu, but cannot be equipped.
-        */
-
-        if (!isUnlocked(name)) {
-
-            announce(
-                `${name} unlocks at Phase ${weapon.requiredPhase}.`
+            emitMessage(
+                "Unknown weapon."
             );
 
             return false;
         }
 
 
-        selected = name;
+        if (
+            !isUnlocked(
+                weapon.name
+            )
+        ) {
+            emitMessage(
+                `LOCKED — PHASE ${weapon.phase}`
+            );
+
+            return false;
+        }
 
 
-        announce(
-            `${name} selected.`
-        );
+        selected =
+            weapon.name;
 
 
         window.dispatchEvent(
@@ -162,8 +231,7 @@ const Weapons = (() => {
                 "forecast-weapon-selected",
                 {
                     detail: {
-                        name,
-                        data: weapon
+                        ...weapon
                     }
                 }
             )
@@ -174,16 +242,15 @@ const Weapons = (() => {
     }
 
 
-    /* =====================================
+    /* =====================================================
        COOLDOWN
-    ===================================== */
+    ===================================================== */
 
     function getCooldownRemaining(
         name = selected
     ) {
-
         const weapon =
-            WEAPONS[name];
+            getData(name);
 
 
         if (!weapon) {
@@ -191,19 +258,20 @@ const Weapons = (() => {
         }
 
 
-        const previous =
-            lastUsed[name] || 0;
-
-
-        const elapsed =
-            performance.now() -
-            previous;
+        const usedAt =
+            lastUsed[
+                weapon.name
+            ] || 0;
 
 
         return Math.max(
             0,
+
             weapon.cooldown -
-            elapsed
+            (
+                performance.now() -
+                usedAt
+            )
         );
     }
 
@@ -211,23 +279,8 @@ const Weapons = (() => {
     function canUse(
         name = selected
     ) {
-
-        return (
-            isUnlocked(name) &&
-            getCooldownRemaining(name)
-            <= 0
-        );
-    }
-
-
-    /* =====================================
-       FIRE
-    ===================================== */
-
-    function fire() {
-
         const weapon =
-            WEAPONS[selected];
+            getData(name);
 
 
         if (!weapon) {
@@ -235,79 +288,194 @@ const Weapons = (() => {
         }
 
 
-        if (!isUnlocked(selected)) {
+        if (
+            !isUnlocked(
+                weapon.name
+            )
+        ) {
+            return false;
+        }
 
-            announce(
-                `${selected} is locked.`
+
+        return (
+            getCooldownRemaining(
+                weapon.name
+            ) <= 0
+        );
+    }
+
+
+    /* =====================================================
+       FIRE
+
+       target = exact point where the player
+       released their finger/mouse.
+
+       Example:
+
+       {
+           x: 420,
+           y: 310
+       }
+    ===================================================== */
+
+    function fire(
+        target = null,
+        name = selected
+    ) {
+        const weapon =
+            getData(name);
+
+
+        if (!weapon) {
+            return {
+                fired: false,
+                reason: "unknown"
+            };
+        }
+
+
+        if (
+            !isUnlocked(
+                weapon.name
+            )
+        ) {
+            emitMessage(
+                `LOCKED — PHASE ${weapon.phase}`
             );
 
-            return false;
+
+            return {
+                fired: false,
+                reason: "locked"
+            };
         }
 
 
-        if (!canUse(selected)) {
+        const remaining =
+            getCooldownRemaining(
+                weapon.name
+            );
 
-            return false;
+
+        if (
+            remaining > 0
+        ) {
+            return {
+                fired: false,
+                reason: "cooldown",
+                remaining
+            };
         }
+
+
+        selected =
+            weapon.name;
+
+
+        lastUsed[
+            weapon.name
+        ] =
+            performance.now();
 
 
         /*
-            Battle.js listens for this.
+            THIS IS THE IMPORTANT PATCH.
 
-            weapons.js does NOT create
-            projectiles itself anymore.
+            The exact drag-release coordinates
+            are included in the event.
         */
-
-        lastUsed[selected] =
-            performance.now();
-
 
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-weapon-fire",
                 {
                     detail: {
-                        name: selected,
+                        name:
+                            weapon.name,
+
                         attack:
-                            weapon.attack
+                            weapon.attack,
+
+                        cooldown:
+                            weapon.cooldown,
+
+                        target:
+                            target
+                                ? {
+                                    x:
+                                        target.x,
+
+                                    y:
+                                        target.y
+                                }
+                                : null
                     }
                 }
             )
         );
 
 
-        return true;
+        return {
+            fired: true,
+
+            weapon:
+                weapon.name,
+
+            attack:
+                weapon.attack,
+
+            target:
+                target
+                    ? {
+                        x:
+                            target.x,
+
+                        y:
+                            target.y
+                    }
+                    : null
+        };
     }
 
 
-    /* =====================================
+    /* =====================================================
        RESET
-    ===================================== */
+    ===================================================== */
 
     function reset() {
-
         selected =
             "GLOCK";
 
 
-        Object.keys(
-            lastUsed
-        ).forEach(
-            key => {
+        for (
+            const key of
+            Object.keys(lastUsed)
+        ) {
+            delete lastUsed[
+                key
+            ];
+        }
 
-                delete lastUsed[key];
 
-            }
+        window.dispatchEvent(
+            new CustomEvent(
+                "forecast-weapon-selected",
+                {
+                    detail: {
+                        ...WEAPONS.GLOCK
+                    }
+                }
+            )
         );
     }
 
 
-    /* =====================================
-       DIALOGUE HELPER
-    ===================================== */
+    /* =====================================================
+       MESSAGE
+    ===================================================== */
 
-    function announce(message) {
-
+    function emitMessage(message) {
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-message",
@@ -321,27 +489,26 @@ const Weapons = (() => {
     }
 
 
-    /* =====================================
+    /* =====================================================
        PUBLIC API
-    ===================================== */
+    ===================================================== */
 
     return {
-
         getList,
         getData,
+
         getSelected,
+        getSelectedData,
 
         isUnlocked,
 
         select,
-
         fire,
 
         canUse,
         getCooldownRemaining,
 
         reset
-
     };
 
 })();
