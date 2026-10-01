@@ -1,102 +1,114 @@
-/* =========================================
-   FORECAST!SANS — EYE SYSTEM V0.3
-========================================= */
+/* =========================================================
+   FORECAST!SANS — SAME END ANYWAY
+   V1 EYE SYSTEM
 
-const Eyes = (() => {
+   Handles:
+   - Eye unlock phases
+   - Selection
+   - Cooldowns
+   - Activation events
+
+   battle.js handles the actual effects/visuals.
+========================================================= */
+
+const ForecastEyes = (() => {
+    "use strict";
 
     const EYES = {
-
         "RED EYE": {
-            requiredPhase: "1",
-            cooldown: 5000,
-            duration: 1300,
-            effect: "freeze",
-            description:
-                "Temporarily locks the protagonist's movement."
+            name: "RED EYE",
+            phase: "1",
+            cooldown: 1300,
+            effect: "redEye",
+            description: "Temporarily freezes the target."
         },
 
         "BLACK EYE": {
-            requiredPhase: "1.5",
-            cooldown: 6500,
-            duration: 2200,
-            effect: "domain",
-            description:
-                "Creates a pocket domain that restricts movement."
+            name: "BLACK EYE",
+            phase: "1.5",
+            cooldown: 2200,
+            effect: "blackEye",
+            description: "Opens Forecast's pocket domain."
         },
 
         "HEROISM": {
-            requiredPhase: "2",
-            cooldown: 7000,
-            duration: 3000,
+            name: "HEROISM",
+            phase: "2",
+            cooldown: 3000,
             effect: "heroism",
-            description:
-                "Bright-red power state that strengthens Forecast's attacks."
+            description: "Boosts Forecast's combat state."
         },
 
         "EVOLUTION": {
-            requiredPhase: "2.5",
-            cooldown: 8500,
-            duration: 4500,
+            name: "EVOLUTION",
+            phase: "2.5",
+            cooldown: 4500,
             effect: "evolution",
-            description:
-                "Studies repeated patterns and adapts to them."
+            description: "Improves adaptation to repeated attacks."
         },
 
         "DEADLOCK": {
-            requiredPhase: "3",
-            cooldown: 7500,
-            duration: 1800,
+            name: "DEADLOCK",
+            phase: "3",
+            cooldown: 1800,
             effect: "deadlock",
-            description:
-                "Locks the protagonist onto their current trajectory."
+            description: "Restricts the target's movement."
         },
 
         "NULL": {
-            requiredPhase: "3.5",
-            cooldown: 9000,
-            duration: 0,
+            name: "NULL",
+            phase: "3.5",
+            cooldown: 3600,
             effect: "null",
-            description:
-                "Erases active hostile projectiles from the arena."
+            description: "Cancels active hostile effects."
         },
 
         "PARADOX": {
-            requiredPhase: "4",
-            cooldown: 8500,
-            duration: 3500,
+            name: "PARADOX",
+            phase: "4",
+            cooldown: 3500,
             effect: "paradox",
-            description:
-                "Creates false Forecast positions to confuse targeting."
+            description: "Disrupts the target's movement pattern."
         },
 
         "OBSERVE": {
-            requiredPhase: "4",
-            cooldown: 6500,
-            duration: 5000,
+            name: "OBSERVE",
+            phase: "4",
+            cooldown: 5000,
             effect: "observe",
-            description:
-                "Reveals predicted hostile trajectories."
+            description: "Studies attacks and improves future dodges."
         },
 
         "VECTOR": {
-            requiredPhase: "4.5",
-            cooldown: 10000,
-            duration: 3000,
+            name: "VECTOR",
+            phase: "4.5",
+            cooldown: 3000,
             effect: "vector",
-            description:
-                "Redirects Forecast's active attacks toward the target."
+            description: "Manipulates an attack direction."
         },
 
         "MOMENT": {
-            requiredPhase: "5",
-            cooldown: 12000,
-            duration: 2500,
+            name: "MOMENT",
+            phase: "5",
+            cooldown: 2500,
             effect: "moment",
-            description:
-                "Slows the battle around Forecast for a brief moment."
+            description: "Briefly locks the current moment."
         }
-
     };
+
+
+    const ORDER = [
+        "RED EYE",
+        "BLACK EYE",
+        "HEROISM",
+        "EVOLUTION",
+        "DEADLOCK",
+        "NULL",
+        "PARADOX",
+        "OBSERVE",
+        "VECTOR",
+        "MOMENT"
+    ];
 
 
     let selected = "RED EYE";
@@ -104,17 +116,22 @@ const Eyes = (() => {
     const lastUsed = {};
 
 
-    /* =====================================
-       INFORMATION
-    ===================================== */
-
-    function getList() {
-        return Object.keys(EYES);
+    function normalize(name) {
+        return String(name || "")
+            .trim()
+            .toUpperCase();
     }
 
 
     function getData(name) {
-        return EYES[name] || null;
+        return EYES[normalize(name)] || null;
+    }
+
+
+    function getList() {
+        return ORDER.map(name => ({
+            ...EYES[name]
+        }));
     }
 
 
@@ -123,243 +140,205 @@ const Eyes = (() => {
     }
 
 
-    /* =====================================
-       UNLOCK CHECK
-    ===================================== */
-
-    function isUnlocked(name) {
-
-        const eye =
-            EYES[name];
-
-
-        if (!eye) {
-            return false;
-        }
-
-
-        if (
-            typeof ForecastPhases ===
-            "undefined"
-        ) {
-            return false;
-        }
-
-
-        return ForecastPhases
-            .isPhaseUnlocked(
-                eye.requiredPhase
-            );
+    function getSelectedData() {
+        return getData(selected);
     }
 
 
-    /* =====================================
-       SELECT
-    ===================================== */
-
-    function select(name) {
-
-        const eye =
-            EYES[name];
-
+    function isUnlocked(name) {
+        const eye = getData(name);
 
         if (!eye) {
             return false;
         }
 
+        if (typeof ForecastPhases === "undefined") {
+            return eye.phase === "1";
+        }
 
-        if (!isUnlocked(name)) {
+        return ForecastPhases.isPhaseUnlocked(
+            eye.phase
+        );
+    }
 
-            announce(
-                `${name} unlocks at Phase ${eye.requiredPhase}.`
+
+    function select(name) {
+        const eye = getData(name);
+
+        if (!eye) {
+            emitMessage("Unknown eye.");
+            return false;
+        }
+
+        if (!isUnlocked(eye.name)) {
+            emitMessage(
+                `LOCKED — PHASE ${eye.phase}`
             );
 
             return false;
         }
 
-
-        selected = name;
-
-
-        announce(
-            `${name} selected.`
-        );
-
+        selected = eye.name;
 
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-eye-selected",
                 {
                     detail: {
-                        name,
-                        data: eye
+                        ...eye
                     }
                 }
             )
         );
 
-
         return true;
     }
 
 
-    /* =====================================
-       COOLDOWN
-    ===================================== */
-
     function getCooldownRemaining(
         name = selected
     ) {
-
-        const eye =
-            EYES[name];
-
+        const eye = getData(name);
 
         if (!eye) {
             return 0;
         }
 
-
-        const previous =
-            lastUsed[name] || 0;
-
-
-        const elapsed =
-            performance.now() -
-            previous;
-
+        const usedAt =
+            lastUsed[eye.name] || 0;
 
         return Math.max(
             0,
             eye.cooldown -
-            elapsed
+            (
+                performance.now() -
+                usedAt
+            )
         );
     }
 
 
-    function canActivate(
+    function canUse(
         name = selected
     ) {
-
-        return (
-            isUnlocked(name) &&
-            getCooldownRemaining(name)
-            <= 0
-        );
-    }
-
-
-    /* =====================================
-       ACTIVATE
-    ===================================== */
-
-    function activate() {
-
-        const eye =
-            EYES[selected];
-
+        const eye = getData(name);
 
         if (!eye) {
             return false;
         }
 
-
-        if (!isUnlocked(selected)) {
-
-            announce(
-                `${selected} is locked.`
-            );
-
+        if (!isUnlocked(eye.name)) {
             return false;
         }
 
-
-        if (!canActivate(selected)) {
-
-            const seconds =
-                Math.ceil(
-                    getCooldownRemaining(
-                        selected
-                    ) / 1000
-                );
+        return (
+            getCooldownRemaining(
+                eye.name
+            ) <= 0
+        );
+    }
 
 
-            announce(
-                `${selected} recovering: ${seconds}s`
-            );
+    /*
+        battle.js/game.js will call this
+        when the player RELEASES their drag.
 
-            return false;
+        target is preserved so directional
+        eyes can use the exact aimed point.
+    */
+    function activate(
+        target = null,
+        name = selected
+    ) {
+        const eye = getData(name);
+
+        if (!eye) {
+            return {
+                activated: false,
+                reason: "unknown"
+            };
         }
 
+        if (!isUnlocked(eye.name)) {
+            emitMessage(
+                `LOCKED — PHASE ${eye.phase}`
+            );
 
-        lastUsed[selected] =
+            return {
+                activated: false,
+                reason: "locked"
+            };
+        }
+
+        const remaining =
+            getCooldownRemaining(
+                eye.name
+            );
+
+        if (remaining > 0) {
+            return {
+                activated: false,
+                reason: "cooldown",
+                remaining
+            };
+        }
+
+        selected = eye.name;
+
+        lastUsed[eye.name] =
             performance.now();
-
-
-        /*
-            battle.js receives this event
-            and performs the visual/gameplay
-            effect.
-        */
 
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-eye-activate",
                 {
                     detail: {
+                        name: eye.name,
+                        effect: eye.effect,
 
-                        name:
-                            selected,
-
-                        effect:
-                            eye.effect,
-
-                        duration:
-                            eye.duration
-
+                        target: target
+                            ? {
+                                x: target.x,
+                                y: target.y
+                            }
+                            : null
                     }
                 }
             )
         );
 
-
-        announce(
-            `${selected} activated.`
-        );
-
-
-        return true;
+        return {
+            activated: true,
+            eye: eye.name,
+            effect: eye.effect
+        };
     }
 
-
-    /* =====================================
-       RESET
-    ===================================== */
 
     function reset() {
+        selected = "RED EYE";
 
-        selected =
-            "RED EYE";
+        for (
+            const key of
+            Object.keys(lastUsed)
+        ) {
+            delete lastUsed[key];
+        }
 
-
-        Object.keys(
-            lastUsed
-        ).forEach(
-            key => {
-
-                delete lastUsed[key];
-
-            }
+        window.dispatchEvent(
+            new CustomEvent(
+                "forecast-eye-selected",
+                {
+                    detail: {
+                        ...EYES["RED EYE"]
+                    }
+                }
+            )
         );
     }
 
 
-    /* =====================================
-       MESSAGE
-    ===================================== */
-
-    function announce(message) {
-
+    function emitMessage(message) {
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-message",
@@ -373,26 +352,22 @@ const Eyes = (() => {
     }
 
 
-    /* =====================================
-       PUBLIC API
-    ===================================== */
-
     return {
-
         getList,
         getData,
+
         getSelected,
+        getSelectedData,
 
         isUnlocked,
 
         select,
         activate,
 
-        canActivate,
+        canUse,
         getCooldownRemaining,
 
         reset
-
     };
 
 })();
