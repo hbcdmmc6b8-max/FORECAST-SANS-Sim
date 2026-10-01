@@ -1,603 +1,581 @@
-/* =========================================
-   FORECAST!SANS — GAME CONTROLLER V0.4
-   AUTO-DODGE EDITION
-========================================= */
+/* =========================================================
+   FORECAST!SANS — SAME END ANYWAY
+   V1 GAME / UI / INPUT CONTROLLER
+
+   - Connects all modules
+   - NO USE / ATTACK BUTTON
+   - Touch + mouse drag aiming
+   - Release = attack
+   - Arsenal selection
+   - Locked abilities stay visible
+   - Cooldown display
+   - Phase / stamina / HP UI
+   - Only #gameCanvas is required
+========================================================= */
 
 (() => {
-
-    /* =====================================
-       STATE
-    ===================================== */
-
-    let currentCategory = "weapon";
-
-    let selected = {
-        weapon: "GLOCK",
-        eyes: "RED EYE",
-        technique: "BONES",
-        forecast: "PREDICT"
-    };
+    "use strict";
 
 
-    /* =====================================
-       FORECAST ABILITIES
-    ===================================== */
+    /* =====================================================
+       DOM
+    ===================================================== */
+
+    const canvas =
+        document.getElementById(
+            "gameCanvas"
+        );
+
+    const phaseLabel =
+        document.getElementById(
+            "phaseLabel"
+        );
+
+    const phaseTrack =
+        document.getElementById(
+            "phaseTrack"
+        );
+
+    const turnBanner =
+        document.getElementById(
+            "turnBanner"
+        );
+
+    const staminaFill =
+        document.getElementById(
+            "staminaFill"
+        );
+
+    const staminaText =
+        document.getElementById(
+            "staminaText"
+        );
+
+    const enemyHealthFill =
+        document.getElementById(
+            "enemyHealthFill"
+        );
+
+    const enemyHealthText =
+        document.getElementById(
+            "enemyHealthText"
+        );
+
+    const dialogue =
+        document.getElementById(
+            "dialogue"
+        );
+
+    const dialogueText =
+        document.getElementById(
+            "dialogueText"
+        );
+
+    const categoryNav =
+        document.getElementById(
+            "categoryNav"
+        );
+
+    const abilityPanel =
+        document.getElementById(
+            "abilityPanel"
+        );
+
+    const phaseSplash =
+        document.getElementById(
+            "phaseSplash"
+        );
+
+
+    /* =====================================================
+       REQUIRED ELEMENT
+
+       Nothing else is allowed to crash the game.
+    ===================================================== */
+
+    if (!canvas) {
+        console.error(
+            "FORECAST: #gameCanvas is missing."
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       CATEGORY STATE
+    ===================================================== */
+
+    const CATEGORIES = [
+        "WEAPON",
+        "EYES",
+        "TECHNIQUE",
+        "FORECAST"
+    ];
+
+
+    let selectedCategory =
+        "WEAPON";
+
+
+    /*
+        Forecast abilities don't need their
+        own separate JS file.
+    */
 
     const FORECAST_ABILITIES = {
 
         "PREDICT": {
-            requiredPhase: "1.5",
-            duration: 1800,
+            name: "PREDICT",
+            phase: "1",
+            cooldown: 1800,
+
             description:
-                "Displays the protagonist's predicted movement."
+                "Reads the protagonist's immediate movement."
         },
 
         "DEEP FORECAST": {
-            requiredPhase: "3",
-            duration: 3200,
+            name: "DEEP FORECAST",
+            phase: "3",
+            cooldown: 3200,
+
             description:
-                "Extends Forecast's prediction window."
+                "Extends prediction and restores stamina."
         },
 
         "ABSOLUTE FORECAST": {
-            requiredPhase: "4.5",
-            duration: 5200,
-            description:
-                "Displays an extended future trajectory."
-        }
+            name: "ABSOLUTE FORECAST",
+            phase: "4.5",
+            cooldown: 5200,
 
+            description:
+                "Pushes Forecast's prediction to its maximum."
+        }
     };
 
 
-    /* =====================================
-       DOM
-    ===================================== */
-
-    let canvas = null;
-
-    let abilityList = null;
-
-    let actionButton = null;
-
-    let selectedDisplay = null;
-
-    let dialogueText = null;
-
-    let categoryButtons = [];
-
-    let combatStatusTitle = null;
-
-    let combatStatusText = null;
-
-    let phaseLabel = null;
-
-    let phaseNodes = [];
+    const FORECAST_ORDER = [
+        "PREDICT",
+        "DEEP FORECAST",
+        "ABSOLUTE FORECAST"
+    ];
 
 
-    /* =====================================
-       START
-    ===================================== */
-
-    window.addEventListener(
-        "DOMContentLoaded",
-        start
-    );
+    let selectedForecast =
+        "PREDICT";
 
 
-    function start() {
-
-        try {
-
-            cacheElements();
-
-            verifyModules();
+    const forecastCooldowns = {};
 
 
-            /*
-                Reset all game-data modules.
-            */
+    /* =====================================================
+       DRAG STATE
+    ===================================================== */
 
-            ForecastPhases.reset();
+    const drag = {
+        active: false,
 
-            Weapons.reset();
+        pointerId: null,
 
-            Eyes.reset();
+        startX: 0,
+        startY: 0,
 
-            Techniques.reset();
+        x: 0,
+        y: 0,
 
-
-            /*
-                V0.4:
-
-                There are NO movement controls.
-
-                Forecast automatically dodges
-                protagonist attacks using stamina.
-            */
-
-            installCategoryControls();
-
-            installActionButton();
-
-            installKeyboard();
-
-            installGameEvents();
+        moved: false
+    };
 
 
-            /*
-                Battle starts after the UI is
-                ready to receive its events.
-            */
+    /*
+        Prevent a tiny accidental tap from
+        immediately firing.
 
-            Battle.init(canvas);
+        The user should actually drag.
+    */
 
-
-            setCategory(
-                "weapon"
-            );
+    const MIN_DRAG_DISTANCE = 8;
 
 
-            syncPhaseHUD();
+    /* =====================================================
+       MESSAGE
+    ===================================================== */
 
-            updateSelectedDisplay();
-
-            updateCombatStatus();
+    let messageTimer = null;
 
 
-            setDialogue(
-                "Another possibility enters your sight."
-            );
+    function showMessage(
+        message,
+        duration = 1600
+    ) {
+        if (!message) return;
+
+
+        if (dialogueText) {
+            dialogueText.textContent =
+                message;
         }
-
-        catch (error) {
-
-            showFatalError(
-                error
-            );
-
-            throw error;
-        }
-    }
-
-
-    /* =====================================
-       CACHE DOM
-    ===================================== */
-
-    function cacheElements() {
-
-        canvas =
-            document.getElementById(
-                "gameCanvas"
-            );
-
-
-        abilityList =
-            document.getElementById(
-                "abilityList"
-            );
-
-
-        actionButton =
-            document.getElementById(
-                "actionButton"
-            );
-
-
-        selectedDisplay =
-            document.getElementById(
-                "selectedDisplay"
-            );
-
-
-        dialogueText =
-            document.getElementById(
-                "dialogueText"
-            );
-
-
-        categoryButtons =
-            Array.from(
-                document.querySelectorAll(
-                    ".category-button"
-                )
-            );
-
-
-        combatStatusTitle =
-            document.getElementById(
-                "combatStatusTitle"
-            );
-
-
-        combatStatusText =
-            document.getElementById(
-                "combatStatusText"
-            );
-
-
-        phaseLabel =
-            document.getElementById(
-                "phaseLabel"
-            );
-
-
-        phaseNodes =
-            Array.from(
-                document.querySelectorAll(
-                    ".phase-node"
-                )
-            );
-
-
-        if (
-            !canvas ||
-            !abilityList ||
-            !actionButton ||
-            !dialogueText
-        ) {
-
-            throw new Error(
-                "Required game UI element is missing."
-            );
-        }
-    }
-
-
-    /* =====================================
-       MODULE CHECK
-    ===================================== */
-
-    function verifyModules() {
-
-        const required = [
-
-            [
-                "ForecastPhases",
-                typeof ForecastPhases
-            ],
-
-            [
-                "Weapons",
-                typeof Weapons
-            ],
-
-            [
-                "Eyes",
-                typeof Eyes
-            ],
-
-            [
-                "Techniques",
-                typeof Techniques
-            ],
-
-            [
-                "Battle",
-                typeof Battle
-            ]
-        ];
-
-
-        const missing =
-            required
-                .filter(
-                    item =>
-                        item[1] ===
-                        "undefined"
-                )
-                .map(
-                    item =>
-                        item[0]
-                );
-
-
-        if (
-            missing.length
-        ) {
-
-            throw new Error(
-                "Missing module(s): " +
-                missing.join(", ")
-            );
-        }
-    }
-
-
-    /* =====================================
-       CATEGORY MENU
-    ===================================== */
-
-    function installCategoryControls() {
-
-        categoryButtons.forEach(
-            button => {
-
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        setCategory(
-                            button.dataset.category
-                        );
-                    }
-                );
-            }
-        );
-    }
-
-
-    function setCategory(category) {
-
-        const allowed = [
-            "weapon",
-            "eyes",
-            "technique",
-            "forecast"
-        ];
-
-
-        if (
-            !allowed.includes(
-                category
-            )
-        ) {
-            return;
+        else if (dialogue) {
+            dialogue.textContent =
+                message;
         }
 
 
-        currentCategory =
-            category;
-
-
-        categoryButtons.forEach(
-            button => {
-
-                button.classList.toggle(
-                    "active",
-
-                    button.dataset.category ===
-                    category
-                );
-            }
-        );
-
-
-        renderAbilityList();
-
-        updateSelectedDisplay();
-
-        updateActionLabel();
-
-        updateCombatStatus();
-    }
-
-
-    /* =====================================
-       ABILITY LIST
-    ===================================== */
-
-    function renderAbilityList() {
-
-        if (
-            !abilityList
-        ) {
-            return;
+        if (dialogue) {
+            dialogue.classList.add(
+                "visible"
+            );
         }
 
 
-        abilityList.innerHTML =
-            "";
+        if (messageTimer) {
+            clearTimeout(
+                messageTimer
+            );
+        }
 
 
-        const names =
-            getCurrentList();
+        messageTimer =
+            setTimeout(() => {
 
-
-        names.forEach(
-            name => {
-
-                const data =
-                    getData(
-                        currentCategory,
-                        name
+                if (dialogue) {
+                    dialogue.classList.remove(
+                        "visible"
                     );
-
-
-                if (
-                    !data
-                ) {
-                    return;
                 }
 
-
-                const unlocked =
-                    isUnlocked(
-                        currentCategory,
-                        name
-                    );
+            }, duration);
+    }
 
 
+    /* =====================================================
+       PHASE HELPERS
+    ===================================================== */
+
+    function getPhase() {
+        if (
+            typeof ForecastPhases ===
+            "undefined"
+        ) {
+            return "1";
+        }
+
+
+        return ForecastPhases
+            .getPhase();
+    }
+
+
+    function isPhaseUnlocked(
+        requiredPhase
+    ) {
+        if (
+            typeof ForecastPhases ===
+            "undefined"
+        ) {
+            return (
+                requiredPhase ===
+                "1"
+            );
+        }
+
+
+        return ForecastPhases
+            .isPhaseUnlocked(
+                requiredPhase
+            );
+    }
+
+
+    /* =====================================================
+       CATEGORY BUTTONS
+
+       Works even if the HTML buttons already exist.
+       If they don't, we create them.
+    ===================================================== */
+
+    function buildCategoryNav() {
+        if (!categoryNav) {
+            return;
+        }
+
+
+        let buttons =
+            categoryNav.querySelectorAll(
+                "[data-category]"
+            );
+
+
+        if (!buttons.length) {
+            categoryNav.innerHTML = "";
+
+
+            for (
+                const category of
+                CATEGORIES
+            ) {
                 const button =
                     document.createElement(
                         "button"
                     );
 
 
+                button.type =
+                    "button";
+
                 button.className =
-                    "ability-button";
+                    "category-button";
+
+                button.dataset.category =
+                    category;
+
+                button.textContent =
+                    category;
 
 
-                if (
-                    selected[
-                        currentCategory
-                    ] === name
-                ) {
-
-                    button.classList.add(
-                        "selected"
-                    );
-                }
-
-
-                if (
-                    !unlocked
-                ) {
-
-                    button.classList.add(
-                        "locked"
-                    );
-
-
-                    button.textContent =
-                        `${name} — LOCKED: PHASE ${data.requiredPhase}`;
-                }
-
-                else {
-
-                    button.textContent =
-                        name;
-                }
-
-
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        chooseAbility(
-                            name
-                        );
-                    }
-                );
-
-
-                abilityList.appendChild(
+                categoryNav.appendChild(
                     button
                 );
             }
-        );
+
+
+            buttons =
+                categoryNav.querySelectorAll(
+                    "[data-category]"
+                );
+        }
+
+
+        buttons.forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const category =
+                        button.dataset
+                            .category;
+
+
+                    if (
+                        !CATEGORIES.includes(
+                            category
+                        )
+                    ) {
+                        return;
+                    }
+
+
+                    selectedCategory =
+                        category;
+
+
+                    updateCategoryButtons();
+
+                    renderAbilities();
+                }
+            );
+        });
+
+
+        updateCategoryButtons();
     }
 
 
-    function getCurrentList() {
+    function updateCategoryButtons() {
+        if (!categoryNav) {
+            return;
+        }
 
+
+        const buttons =
+            categoryNav.querySelectorAll(
+                "[data-category]"
+            );
+
+
+        buttons.forEach(button => {
+
+            button.classList.toggle(
+                "active",
+
+                button.dataset.category ===
+                    selectedCategory
+            );
+        });
+    }
+
+
+    /* =====================================================
+       ABILITY LIST
+    ===================================================== */
+
+    function getAbilitiesForCategory() {
         switch (
-            currentCategory
+            selectedCategory
         ) {
 
-            case "weapon":
+            case "WEAPON":
 
-                return Weapons.getList();
+                if (
+                    typeof ForecastWeapons ===
+                    "undefined"
+                ) {
+                    return [];
+                }
 
-
-            case "eyes":
-
-                return Eyes.getList();
-
-
-            case "technique":
-
-                return Techniques.getList();
+                return ForecastWeapons
+                    .getList();
 
 
-            case "forecast":
+            case "EYES":
 
-                return Object.keys(
-                    FORECAST_ABILITIES
+                if (
+                    typeof ForecastEyes ===
+                    "undefined"
+                ) {
+                    return [];
+                }
+
+                return ForecastEyes
+                    .getList();
+
+
+            case "TECHNIQUE":
+
+                if (
+                    typeof ForecastTechniques ===
+                    "undefined"
+                ) {
+                    return [];
+                }
+
+                return ForecastTechniques
+                    .getList();
+
+
+            case "FORECAST":
+
+                return FORECAST_ORDER.map(
+                    name => ({
+                        ...FORECAST_ABILITIES[
+                            name
+                        ]
+                    })
                 );
 
 
             default:
-
                 return [];
         }
     }
 
 
-    /* =====================================
-       DATA
-    ===================================== */
+    /* =====================================================
+       CURRENT SELECTION
+    ===================================================== */
 
-    function getData(
-        category,
-        name
-    ) {
-
+    function getSelectedName() {
         switch (
-            category
+            selectedCategory
         ) {
 
-            case "weapon":
-
-                return Weapons.getData(
-                    name
-                );
-
-
-            case "eyes":
-
-                return Eyes.getData(
-                    name
-                );
-
-
-            case "technique":
-
-                return Techniques.getData(
-                    name
-                );
-
-
-            case "forecast":
+            case "WEAPON":
 
                 return (
-                    FORECAST_ABILITIES[
-                        name
-                    ] || null
-                );
+                    typeof ForecastWeapons !==
+                    "undefined"
+                )
+                    ? ForecastWeapons
+                        .getSelected()
+                    : "";
+
+
+            case "EYES":
+
+                return (
+                    typeof ForecastEyes !==
+                    "undefined"
+                )
+                    ? ForecastEyes
+                        .getSelected()
+                    : "";
+
+
+            case "TECHNIQUE":
+
+                return (
+                    typeof ForecastTechniques !==
+                    "undefined"
+                )
+                    ? ForecastTechniques
+                        .getSelected()
+                    : "";
+
+
+            case "FORECAST":
+
+                return selectedForecast;
 
 
             default:
-
-                return null;
+                return "";
         }
     }
 
 
-    function isUnlocked(
-        category,
-        name
-    ) {
+    /* =====================================================
+       SELECT ABILITY
+    ===================================================== */
 
+    function selectAbility(name) {
         switch (
-            category
+            selectedCategory
         ) {
 
-            case "weapon":
+            case "WEAPON":
 
-                return Weapons
-                    .isUnlocked(
+                if (
+                    typeof ForecastWeapons !==
+                    "undefined"
+                ) {
+                    ForecastWeapons.select(
                         name
                     );
+                }
+
+                break;
 
 
-            case "eyes":
+            case "EYES":
 
-                return Eyes
-                    .isUnlocked(
+                if (
+                    typeof ForecastEyes !==
+                    "undefined"
+                ) {
+                    ForecastEyes.select(
                         name
                     );
+                }
+
+                break;
 
 
-            case "technique":
+            case "TECHNIQUE":
 
-                return Techniques
-                    .isUnlocked(
+                if (
+                    typeof ForecastTechniques !==
+                    "undefined"
+                ) {
+                    ForecastTechniques.select(
                         name
                     );
+                }
+
+                break;
 
 
-            case "forecast": {
+            case "FORECAST": {
 
                 const ability =
                     FORECAST_ABILITIES[
@@ -605,548 +583,1210 @@
                     ];
 
 
-                if (
-                    !ability
-                ) {
-                    return false;
+                if (!ability) {
+                    return;
                 }
 
 
-                return ForecastPhases
-                    .isPhaseUnlocked(
-                        ability.requiredPhase
+                if (
+                    !isPhaseUnlocked(
+                        ability.phase
+                    )
+                ) {
+                    showMessage(
+                        `LOCKED — PHASE ${ability.phase}`
                     );
+
+                    return;
+                }
+
+
+                selectedForecast =
+                    ability.name;
+
+                break;
+            }
+        }
+
+
+        renderAbilities();
+    }
+
+
+    /* =====================================================
+       COOLDOWN
+    ===================================================== */
+
+    function getCooldownRemaining(
+        ability
+    ) {
+        if (!ability) {
+            return 0;
+        }
+
+
+        switch (
+            selectedCategory
+        ) {
+
+            case "WEAPON":
+
+                return (
+                    typeof ForecastWeapons !==
+                    "undefined"
+                )
+                    ? ForecastWeapons
+                        .getCooldownRemaining(
+                            ability.name
+                        )
+                    : 0;
+
+
+            case "EYES":
+
+                return (
+                    typeof ForecastEyes !==
+                    "undefined"
+                )
+                    ? ForecastEyes
+                        .getCooldownRemaining(
+                            ability.name
+                        )
+                    : 0;
+
+
+            case "TECHNIQUE":
+
+                return (
+                    typeof ForecastTechniques !==
+                    "undefined"
+                )
+                    ? ForecastTechniques
+                        .getCooldownRemaining(
+                            ability.name
+                        )
+                    : 0;
+
+
+            case "FORECAST": {
+
+                const lastUsed =
+                    forecastCooldowns[
+                        ability.name
+                    ] || 0;
+
+
+                return Math.max(
+                    0,
+
+                    ability.cooldown -
+                    (
+                        performance.now() -
+                        lastUsed
+                    )
+                );
             }
 
 
             default:
-
-                return false;
+                return 0;
         }
     }
 
 
-    /* =====================================
-       SELECT ABILITY
-    ===================================== */
+    /* =====================================================
+       RENDER ABILITIES
+    ===================================================== */
 
-    function chooseAbility(name) {
-
-        const data =
-            getData(
-                currentCategory,
-                name
-            );
-
-
-        if (
-            !data
-        ) {
+    function renderAbilities() {
+        if (!abilityPanel) {
             return;
         }
 
 
-        if (
-            !isUnlocked(
-                currentCategory,
-                name
-            )
-        ) {
+        const abilities =
+            getAbilitiesForCategory();
 
-            setDialogue(
-                `${name} unlocks at Phase ${data.requiredPhase}.`
+
+        const selected =
+            getSelectedName();
+
+
+        abilityPanel.innerHTML = "";
+
+
+        for (
+            const ability of
+            abilities
+        ) {
+            const unlocked =
+                isPhaseUnlocked(
+                    ability.phase
+                );
+
+
+            const cooldown =
+                getCooldownRemaining(
+                    ability
+                );
+
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+
+            button.type =
+                "button";
+
+
+            button.className =
+                "ability-button";
+
+
+            if (
+                selected ===
+                ability.name
+            ) {
+                button.classList.add(
+                    "selected"
+                );
+            }
+
+
+            if (!unlocked) {
+                button.classList.add(
+                    "locked"
+                );
+            }
+
+
+            if (
+                cooldown > 0
+            ) {
+                button.classList.add(
+                    "cooldown"
+                );
+            }
+
+
+            const title =
+                document.createElement(
+                    "span"
+                );
+
+
+            title.className =
+                "ability-name";
+
+            title.textContent =
+                ability.name;
+
+
+            const info =
+                document.createElement(
+                    "span"
+                );
+
+
+            info.className =
+                "ability-info";
+
+
+            if (!unlocked) {
+                info.textContent =
+                    `LOCKED — PHASE ${ability.phase}`;
+            }
+            else if (
+                cooldown > 0
+            ) {
+                info.textContent =
+                    `${(
+                        cooldown / 1000
+                    ).toFixed(1)}s`;
+            }
+            else {
+                info.textContent =
+                    ability.description ||
+                    "READY";
+            }
+
+
+            button.appendChild(
+                title
             );
 
-            return;
-        }
-
-
-        let success =
-            true;
-
-
-        switch (
-            currentCategory
-        ) {
-
-            case "weapon":
-
-                success =
-                    Weapons.select(
-                        name
-                    );
-
-                break;
-
-
-            case "eyes":
-
-                success =
-                    Eyes.select(
-                        name
-                    );
-
-                break;
-
-
-            case "technique":
-
-                success =
-                    Techniques.select(
-                        name
-                    );
-
-                break;
-
-
-            case "forecast":
-
-                selected.forecast =
-                    name;
-
-                break;
-        }
-
-
-        if (
-            !success
-        ) {
-            return;
-        }
-
-
-        selected[
-            currentCategory
-        ] = name;
-
-
-        renderAbilityList();
-
-        updateSelectedDisplay();
-
-        updateActionLabel();
-
-        updateCombatStatus();
-
-
-        if (
-            data.description
-        ) {
-
-            setDialogue(
-                data.description
+            button.appendChild(
+                info
             );
-        }
-    }
 
 
-    /* =====================================
-       ACTION BUTTON
-    ===================================== */
+            button.addEventListener(
+                "click",
+                () => {
 
-    function installActionButton() {
+                    if (!unlocked) {
+                        showMessage(
+                            `LOCKED — PHASE ${ability.phase}`
+                        );
 
-        actionButton.addEventListener(
-            "click",
-            useSelectedAbility
-        );
-    }
+                        return;
+                    }
 
 
-    function useSelectedAbility() {
-
-        switch (
-            currentCategory
-        ) {
-
-            case "weapon":
-
-                if (
-                    !Battle.isForecastTurn()
-                ) {
-
-                    setDialogue(
-                        "Forecast is auto-dodging. Attack when your turn returns."
+                    selectAbility(
+                        ability.name
                     );
-
-                    return;
                 }
+            );
 
 
-                Weapons.fire();
-
-                break;
-
-
-            case "eyes":
-
-                Eyes.activate();
-
-                break;
-
-
-            case "technique":
-
-                if (
-                    !Battle.isForecastTurn()
-                ) {
-
-                    setDialogue(
-                        "Forecast is auto-dodging. Techniques return on your turn."
-                    );
-
-                    return;
-                }
-
-
-                Techniques.activate();
-
-                break;
-
-
-            case "forecast":
-
-                activateForecast();
-
-                break;
+            abilityPanel.appendChild(
+                button
+            );
         }
-
-
-        updateCombatStatus();
     }
 
 
-    /* =====================================
-       FORECAST ABILITIES
-    ===================================== */
+    /* =====================================================
+       CANVAS COORDINATES
+    ===================================================== */
 
-    function activateForecast() {
-
-        const name =
-            selected.forecast;
-
-
-        const ability =
-            FORECAST_ABILITIES[
-                name
-            ];
+    function pointerToCanvas(
+        event
+    ) {
+        const rect =
+            canvas.getBoundingClientRect();
 
 
+        const scaleX =
+            canvas.clientWidth /
+            rect.width;
+
+        const scaleY =
+            canvas.clientHeight /
+            rect.height;
+
+
+        return {
+            x:
+                (
+                    event.clientX -
+                    rect.left
+                ) * scaleX,
+
+            y:
+                (
+                    event.clientY -
+                    rect.top
+                ) * scaleY
+        };
+    }
+
+
+    /* =====================================================
+       TARGET LIMITS
+
+       The released target is constrained to
+       the protagonist battle box.
+    ===================================================== */
+
+    function clampTargetToArena(
+        target
+    ) {
         if (
-            !ability
+            typeof ForecastBattle ===
+            "undefined"
         ) {
-            return;
+            return target;
         }
 
 
+        const status =
+            ForecastBattle.getStatus();
+
+
         if (
-            !ForecastPhases
-                .isPhaseUnlocked(
-                    ability.requiredPhase
+            !status ||
+            !status.arena
+        ) {
+            return target;
+        }
+
+
+        return {
+            x:
+                Math.max(
+                    status.arena.left,
+                    Math.min(
+                        status.arena.right,
+                        target.x
+                    )
+                ),
+
+            y:
+                Math.max(
+                    status.arena.top,
+                    Math.min(
+                        status.arena.bottom,
+                        target.y
+                    )
                 )
-        ) {
+        };
+    }
 
-            setDialogue(
-                `${name} unlocks at Phase ${ability.requiredPhase}.`
+
+    /* =====================================================
+       DRAG START
+    ===================================================== */
+
+    function beginDrag(event) {
+        if (
+            typeof ForecastBattle ===
+            "undefined"
+        ) {
+            return;
+        }
+
+
+        const status =
+            ForecastBattle.getStatus();
+
+
+        /*
+            You can only attack during
+            Forecast's turn.
+        */
+
+        if (
+            !status ||
+            status.battleEnded ||
+            status.turn !==
+                "FORECAST"
+        ) {
+            return;
+        }
+
+
+        const point =
+            pointerToCanvas(
+                event
+            );
+
+
+        drag.active = true;
+
+        drag.pointerId =
+            event.pointerId;
+
+        drag.startX =
+            point.x;
+
+        drag.startY =
+            point.y;
+
+        drag.x =
+            point.x;
+
+        drag.y =
+            point.y;
+
+        drag.moved = false;
+
+
+        try {
+            canvas.setPointerCapture(
+                event.pointerId
+            );
+        }
+        catch (_) {
+            /*
+                Some mobile browsers may
+                reject capture. Drag still works.
+            */
+        }
+
+
+        const target =
+            clampTargetToArena(
+                point
+            );
+
+
+        ForecastBattle
+            .setAimPreview(
+                target
+            );
+
+
+        event.preventDefault();
+    }
+
+
+    /* =====================================================
+       DRAG MOVE
+    ===================================================== */
+
+    function moveDrag(event) {
+        if (
+            !drag.active ||
+            event.pointerId !==
+                drag.pointerId
+        ) {
+            return;
+        }
+
+
+        const point =
+            pointerToCanvas(
+                event
+            );
+
+
+        drag.x =
+            point.x;
+
+        drag.y =
+            point.y;
+
+
+        const movedDistance =
+            Math.hypot(
+                drag.x -
+                drag.startX,
+
+                drag.y -
+                drag.startY
+            );
+
+
+        if (
+            movedDistance >=
+            MIN_DRAG_DISTANCE
+        ) {
+            drag.moved = true;
+        }
+
+
+        const target =
+            clampTargetToArena(
+                point
+            );
+
+
+        ForecastBattle
+            .setAimPreview(
+                target
+            );
+
+
+        event.preventDefault();
+    }
+
+
+    /* =====================================================
+       DRAG RELEASE = FIRE
+    ===================================================== */
+
+    function endDrag(event) {
+        if (
+            !drag.active ||
+            event.pointerId !==
+                drag.pointerId
+        ) {
+            return;
+        }
+
+
+        const point =
+            pointerToCanvas(
+                event
+            );
+
+
+        const target =
+            clampTargetToArena(
+                point
+            );
+
+
+        try {
+            canvas.releasePointerCapture(
+                event.pointerId
+            );
+        }
+        catch (_) {}
+
+
+        ForecastBattle
+            .setAimPreview(
+                null
+            );
+
+
+        const shouldFire =
+            drag.moved;
+
+
+        drag.active = false;
+        drag.pointerId = null;
+
+
+        event.preventDefault();
+
+
+        /*
+            A tiny tap does NOT fire.
+        */
+
+        if (!shouldFire) {
+            return;
+        }
+
+
+        fireSelected(
+            target
+        );
+    }
+
+
+    /* =====================================================
+       CANCEL DRAG
+    ===================================================== */
+
+    function cancelDrag(event) {
+        if (
+            !drag.active
+        ) {
+            return;
+        }
+
+
+        if (
+            event &&
+            event.pointerId !==
+                drag.pointerId
+        ) {
+            return;
+        }
+
+
+        drag.active = false;
+        drag.pointerId = null;
+
+
+        if (
+            typeof ForecastBattle !==
+            "undefined"
+        ) {
+            ForecastBattle
+                .setAimPreview(
+                    null
+                );
+        }
+    }
+
+
+    /* =====================================================
+       FIRE CURRENT SELECTION
+    ===================================================== */
+
+    function fireSelected(target) {
+        if (
+            typeof ForecastBattle ===
+            "undefined"
+        ) {
+            return;
+        }
+
+
+        const status =
+            ForecastBattle.getStatus();
+
+
+        if (
+            !status ||
+            status.battleEnded
+        ) {
+            return;
+        }
+
+
+        if (
+            status.turn !==
+            "FORECAST"
+        ) {
+            showMessage(
+                "PROTAGONIST TURN"
             );
 
             return;
         }
 
 
-        Battle.activatePrediction(
-            ability.duration
-        );
-
-
-        switch (name) {
-
-            case "PREDICT":
-
-                setDialogue(
-                    "Forecast: movement possibility detected."
-                );
-
-                break;
-
-
-            case "DEEP FORECAST":
-
-                setDialogue(
-                    "Forecast: multiple possibilities overlap."
-                );
-
-                break;
-
-
-            case "ABSOLUTE FORECAST":
-
-                setDialogue(
-                    "Forecast: the path ahead becomes visible."
-                );
-
-                break;
-        }
-    }
-
-
-    /* =====================================
-       ACTION LABEL
-    ===================================== */
-
-    function updateActionLabel() {
-
-        if (
-            !actionButton
-        ) {
-            return;
-        }
-
-
         switch (
-            currentCategory
+            selectedCategory
         ) {
 
-            case "weapon":
+            /* =============================================
+               WEAPON
+            ============================================= */
 
-                actionButton.textContent =
-                    "ATTACK";
+            case "WEAPON": {
+
+                if (
+                    typeof ForecastWeapons ===
+                    "undefined"
+                ) {
+                    return;
+                }
+
+
+                const weapon =
+                    ForecastWeapons
+                        .getSelectedData();
+
+
+                if (!weapon) {
+                    return;
+                }
+
+
+                if (
+                    !ForecastWeapons
+                        .isUnlocked(
+                            weapon.name
+                        )
+                ) {
+                    showMessage(
+                        `LOCKED — PHASE ${weapon.phase}`
+                    );
+
+                    return;
+                }
+
+
+                const remaining =
+                    ForecastWeapons
+                        .getCooldownRemaining(
+                            weapon.name
+                        );
+
+
+                if (
+                    remaining > 0
+                ) {
+                    showMessage(
+                        `COOLDOWN ${(
+                            remaining / 1000
+                        ).toFixed(1)}s`
+                    );
+
+                    return;
+                }
+
+
+                /*
+                    IMPORTANT:
+
+                    We use ForecastWeapons.fire()
+                    to register the cooldown.
+
+                    But the older weapons module
+                    doesn't carry the target in
+                    its event.
+
+                    So we suppress the event's
+                    battle effect by using the
+                    direct battle call below.
+
+                    The event itself may still
+                    fire, so battle.js needs a
+                    target. To avoid duplicate
+                    attacks entirely, we use the
+                    helper below.
+                */
+
+
+                fireWeaponSafely(
+                    weapon,
+                    target
+                );
 
                 break;
+            }
 
 
-            case "eyes":
+            /* =============================================
+               EYES
+            ============================================= */
 
-                actionButton.textContent =
-                    "ACTIVATE";
+            case "EYES": {
+
+                if (
+                    typeof ForecastEyes ===
+                    "undefined"
+                ) {
+                    return;
+                }
+
+
+                const eye =
+                    ForecastEyes
+                        .getSelectedData();
+
+
+                if (!eye) {
+                    return;
+                }
+
+
+                /*
+                    eyes.js already carries
+                    target data in its event.
+                */
+
+                const result =
+                    ForecastEyes.activate(
+                        target,
+                        eye.name
+                    );
+
+
+                if (
+                    !result.activated &&
+                    result.reason ===
+                        "cooldown"
+                ) {
+                    showMessage(
+                        `COOLDOWN ${(
+                            result.remaining /
+                            1000
+                        ).toFixed(1)}s`
+                    );
+                }
+
 
                 break;
+            }
 
 
-            case "technique":
+            /* =============================================
+               TECHNIQUE
+            ============================================= */
 
-                actionButton.textContent =
-                    "USE";
+            case "TECHNIQUE": {
+
+                if (
+                    typeof ForecastTechniques ===
+                    "undefined"
+                ) {
+                    return;
+                }
+
+
+                const technique =
+                    ForecastTechniques
+                        .getSelectedData();
+
+
+                if (!technique) {
+                    return;
+                }
+
+
+                /*
+                    techniques.js already carries
+                    the target in the event.
+                */
+
+                const result =
+                    ForecastTechniques
+                        .activate(
+                            target,
+                            technique.name
+                        );
+
+
+                if (
+                    !result.activated &&
+                    result.reason ===
+                        "cooldown"
+                ) {
+                    showMessage(
+                        `COOLDOWN ${(
+                            result.remaining /
+                            1000
+                        ).toFixed(1)}s`
+                    );
+                }
+
 
                 break;
+            }
 
 
-            case "forecast":
+            /* =============================================
+               FORECAST
+            ============================================= */
 
-                actionButton.textContent =
-                    "PREDICT";
+            case "FORECAST": {
+
+                const ability =
+                    FORECAST_ABILITIES[
+                        selectedForecast
+                    ];
+
+
+                if (!ability) {
+                    return;
+                }
+
+
+                if (
+                    !isPhaseUnlocked(
+                        ability.phase
+                    )
+                ) {
+                    showMessage(
+                        `LOCKED — PHASE ${ability.phase}`
+                    );
+
+                    return;
+                }
+
+
+                const lastUsed =
+                    forecastCooldowns[
+                        ability.name
+                    ] || 0;
+
+
+                const remaining =
+                    Math.max(
+                        0,
+
+                        ability.cooldown -
+                        (
+                            performance.now() -
+                            lastUsed
+                        )
+                    );
+
+
+                if (
+                    remaining > 0
+                ) {
+                    showMessage(
+                        `COOLDOWN ${(
+                            remaining / 1000
+                        ).toFixed(1)}s`
+                    );
+
+                    return;
+                }
+
+
+                const used =
+                    ForecastBattle
+                        .useForecastAbility(
+                            ability.name,
+                            target
+                        );
+
+
+                if (used) {
+                    forecastCooldowns[
+                        ability.name
+                    ] =
+                        performance.now();
+                }
+
 
                 break;
+            }
+        }
+
+
+        renderAbilities();
+    }
+
+
+    /* =====================================================
+       WEAPON BRIDGE
+
+       V1 weapons.js was written before we
+       finalized drag-target firing.
+
+       This records its cooldown without
+       allowing a duplicate projectile.
+
+       We temporarily intercept the weapon
+       event, attach the target, and let
+       battle.js receive exactly ONE shot.
+    ===================================================== */
+
+    function fireWeaponSafely(
+        weapon,
+        target
+    ) {
+        /*
+            Easiest clean solution:
+            use the weapons module for cooldown,
+            intercept its event before battle.js
+            sees it, then manually fire once.
+
+            However event listener ordering would
+            make that unnecessarily fragile.
+
+            So for this V1 bridge we temporarily
+            stop battle's listener from being
+            relevant by passing the target through
+            a one-shot global bridge.
+        */
+
+
+        window.__forecastDragTarget =
+            target;
+
+
+        const result =
+            ForecastWeapons.fire(
+                weapon.name
+            );
+
+
+        /*
+            weapons.js emits the attack once.
+            battle.js receives it, but because
+            old weapons.js does not include target,
+            battle.js falls back to the current
+            protagonist position.
+
+            We therefore DO NOT fire a second
+            projectile here.
+
+            Step after the first test will be a
+            tiny weapons.js patch so its event
+            carries target directly.
+        */
+
+
+        window.__forecastDragTarget =
+            null;
+
+
+        if (
+            !result.fired &&
+            result.reason ===
+                "cooldown"
+        ) {
+            showMessage(
+                `COOLDOWN ${(
+                    result.remaining /
+                    1000
+                ).toFixed(1)}s`
+            );
         }
     }
 
 
-    function updateSelectedDisplay() {
+    /* =====================================================
+       POINTER EVENTS
 
+       Pointer events work for:
+       - iPhone touch
+       - iPad
+       - mouse
+       - stylus
+    ===================================================== */
+
+    canvas.addEventListener(
+        "pointerdown",
+        beginDrag,
+        {
+            passive: false
+        }
+    );
+
+
+    canvas.addEventListener(
+        "pointermove",
+        moveDrag,
+        {
+            passive: false
+        }
+    );
+
+
+    canvas.addEventListener(
+        "pointerup",
+        endDrag,
+        {
+            passive: false
+        }
+    );
+
+
+    canvas.addEventListener(
+        "pointercancel",
+        cancelDrag,
+        {
+            passive: false
+        }
+    );
+
+
+    canvas.addEventListener(
+        "contextmenu",
+        event =>
+            event.preventDefault()
+    );
+
+
+    /*
+        Important on mobile:
+        browser should not scroll/zoom while
+        dragging inside the battle canvas.
+    */
+
+    canvas.style.touchAction =
+        "none";
+
+
+    /* =====================================================
+       HUD UPDATE
+    ===================================================== */
+
+    function updateHUD() {
         if (
-            !selectedDisplay
+            typeof ForecastBattle ===
+            "undefined"
         ) {
             return;
         }
 
 
-        selectedDisplay.textContent =
-            selected[
-                currentCategory
-            ] || "";
-    }
+        const status =
+            ForecastBattle.getStatus();
 
 
-    /* =====================================
-       KEYBOARD
-
-       NO WASD.
-       NO ARROWS.
-       NO MANUAL MOVEMENT.
-    ===================================== */
-
-    function installKeyboard() {
-
-        window.addEventListener(
-            "keydown",
-            event => {
-
-                /*
-                    Space / Enter:
-                    use selected ability.
-                */
-
-                if (
-                    event.key === " " ||
-                    event.key === "Enter"
-                ) {
-
-                    event.preventDefault();
-
-                    useSelectedAbility();
-
-                    return;
-                }
+        if (!status) {
+            return;
+        }
 
 
-                /*
-                    1 — Weapon
-                    2 — Eyes
-                    3 — Technique
-                    4 — Forecast
-                */
-
-                if (
-                    event.key === "1"
-                ) {
-
-                    setCategory(
-                        "weapon"
-                    );
-
-                    return;
-                }
-
-
-                if (
-                    event.key === "2"
-                ) {
-
-                    setCategory(
-                        "eyes"
-                    );
-
-                    return;
-                }
-
-
-                if (
-                    event.key === "3"
-                ) {
-
-                    setCategory(
-                        "technique"
-                    );
-
-                    return;
-                }
-
-
-                if (
-                    event.key === "4"
-                ) {
-
-                    setCategory(
-                        "forecast"
-                    );
-                }
-            }
-        );
-    }
-
-
-    /* =====================================
-       GLOBAL GAME EVENTS
-    ===================================== */
-
-    function installGameEvents() {
-
-        window.addEventListener(
-            "forecast-message",
-            event => {
-
-                if (
-                    event.detail &&
-                    event.detail.message
-                ) {
-
-                    setDialogue(
-                        event.detail.message
-                    );
-                }
-
-
-                updateCombatStatus();
-            }
-        );
-
-
-        window.addEventListener(
-            "forecast-phase-change",
-            event => {
-
-                const detail =
-                    event.detail || {};
-
-
-                const phase =
-                    detail.phase ||
-                    ForecastPhases.getPhase();
-
-
-                /*
-                    New phase can unlock
-                    new abilities.
-                */
-
-                renderAbilityList();
-
-                updateSelectedDisplay();
-
-                syncPhaseHUD();
-
-                updateCombatStatus();
-
-
-                if (
-                    phase === "5"
-                ) {
-
-                    setDialogue(
-                        "Phase 5. Every unlocked possibility is now available."
-                    );
-                }
-
-                else {
-
-                    setDialogue(
-                        `Phase ${phase}. New possibilities detected.`
-                    );
-                }
-            }
-        );
-    }
-
-
-    /* =====================================
-       PHASE HUD
-
-       phases.js V0.3 used an older HUD ID.
-       V0.4 keeps this synced independently.
-    ===================================== */
-
-    function syncPhaseHUD() {
+        /* ---------------- PHASE ---------------- */
 
         const phase =
-            String(
-                ForecastPhases
-                    .getPhase()
-            );
+            getPhase();
 
 
-        if (
-            phaseLabel
-        ) {
-
+        if (phaseLabel) {
             phaseLabel.textContent =
                 `PHASE ${phase}`;
         }
 
 
+        updatePhaseTrack(
+            phase
+        );
+
+
+        /* ---------------- TURN ---------------- */
+
+        if (turnBanner) {
+            turnBanner.textContent =
+                status.turn ===
+                "FORECAST"
+                    ? "FORECAST TURN"
+                    : "PROTAGONIST TURN";
+
+
+            turnBanner.dataset.turn =
+                status.turn;
+        }
+
+
+        /* ---------------- STAMINA ---------------- */
+
+        const staminaPercent =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+
+                    (
+                        status.stamina /
+                        status.maxStamina
+                    ) * 100
+                )
+            );
+
+
+        if (staminaFill) {
+            staminaFill.style.width =
+                `${staminaPercent}%`;
+        }
+
+
+        if (staminaText) {
+            staminaText.textContent =
+                `${Math.round(
+                    status.stamina
+                )} / ${status.maxStamina}`;
+        }
+
+
+        /* ---------------- PROTAGONIST HP ---------------- */
+
+        const hpPercent =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+
+                    (
+                        status.protagonistHP /
+                        status.protagonistMaxHP
+                    ) * 100
+                )
+            );
+
+
+        if (enemyHealthFill) {
+            enemyHealthFill.style.width =
+                `${hpPercent}%`;
+        }
+
+
+        if (enemyHealthText) {
+            enemyHealthText.textContent =
+                `${Math.ceil(
+                    status.protagonistHP
+                )} / ${status.protagonistMaxHP}`;
+        }
+    }
+
+
+    /* =====================================================
+       PHASE TRACK
+    ===================================================== */
+
+    function updatePhaseTrack(
+        currentPhase
+    ) {
+        if (!phaseTrack) {
+            return;
+        }
+
+
         const phases =
-            typeof ForecastPhases
-                .getAllPhases === "function"
-                ? ForecastPhases.getAllPhases()
+            typeof ForecastPhases !==
+            "undefined"
+                ? ForecastPhases
+                    .getAllPhases()
                 : [
                     "1",
                     "1.5",
@@ -1162,192 +1802,308 @@
 
         const currentIndex =
             phases.indexOf(
-                phase
+                currentPhase
             );
 
 
-        phaseNodes.forEach(
-            (
-                node,
-                index
-            ) => {
+        const nodes =
+            phaseTrack.querySelectorAll(
+                ".phase-node, [data-phase]"
+            );
+
+
+        nodes.forEach(
+            (node, index) => {
+
+                const nodePhase =
+                    node.dataset.phase ||
+                    node.textContent
+                        .trim()
+                        .replace(
+                            /^PHASE\s*/i,
+                            ""
+                        );
+
+
+                const nodeIndex =
+                    phases.indexOf(
+                        nodePhase
+                    );
+
+
+                const resolvedIndex =
+                    nodeIndex >= 0
+                        ? nodeIndex
+                        : index;
+
 
                 node.classList.toggle(
                     "active",
-                    index === currentIndex
+
+                    resolvedIndex ===
+                        currentIndex
                 );
 
 
                 node.classList.toggle(
                     "passed",
-                    index < currentIndex
+
+                    resolvedIndex <
+                        currentIndex
                 );
             }
         );
     }
 
 
-    /* =====================================
-       COMBAT STATUS
-    ===================================== */
+    /* =====================================================
+       PHASE SPLASH
+    ===================================================== */
 
-    function updateCombatStatus() {
+    let splashTimer = null;
 
-        if (
-            !combatStatusTitle &&
-            !combatStatusText
-        ) {
+
+    function showPhaseSplash(
+        phase
+    ) {
+        if (!phaseSplash) {
             return;
         }
 
 
-        const forecastTurn =
-            Battle &&
-            typeof Battle
-                .isForecastTurn ===
-                "function"
-                ? Battle.isForecastTurn()
-                : true;
+        phaseSplash.textContent =
+            `PHASE ${phase}`;
 
 
-        if (
-            forecastTurn
-        ) {
-
-            if (
-                combatStatusTitle
-            ) {
-
-                combatStatusTitle.textContent =
-                    "YOUR TURN";
-            }
+        phaseSplash.classList.add(
+            "visible"
+        );
 
 
-            if (
-                combatStatusText
-            ) {
-
-                combatStatusText.textContent =
-                    "Choose an attack, eye, technique, or Forecast ability.";
-            }
+        if (splashTimer) {
+            clearTimeout(
+                splashTimer
+            );
         }
 
-        else {
 
-            if (
-                combatStatusTitle
-            ) {
+        splashTimer =
+            setTimeout(() => {
 
-                combatStatusTitle.textContent =
-                    "AUTO-DODGE";
-            }
+                phaseSplash.classList.remove(
+                    "visible"
+                );
 
-
-            if (
-                combatStatusText
-            ) {
-
-                const stamina =
-                    typeof Battle.getStamina ===
-                        "function"
-                        ? Math.ceil(
-                            Battle.getStamina()
-                        )
-                        : "?";
-
-
-                combatStatusText.textContent =
-                    `Forecast is evading automatically. Stamina: ${stamina}/100`;
-            }
-        }
+            }, 900);
     }
 
 
-    /*
-        Battle's turn changes happen internally,
-        so periodically refresh only the small
-        combat-status text.
+    /* =====================================================
+       GLOBAL EVENTS
+    ===================================================== */
 
-        This does NOT control gameplay.
-    */
+    window.addEventListener(
+        "forecast-message",
+        event => {
 
-    window.setInterval(
-        () => {
-
-            try {
-
-                if (
-                    typeof Battle !==
-                    "undefined"
-                ) {
-
-                    updateCombatStatus();
-                }
+            if (
+                event.detail &&
+                event.detail.message
+            ) {
+                showMessage(
+                    event.detail.message
+                );
             }
-
-            catch (_) {
-
-                /*
-                    Ignore status refresh errors.
-                    Actual game errors still use
-                    the normal fatal-error system.
-                */
-            }
-        },
-
-        250
+        }
     );
 
 
-    /* =====================================
-       DIALOGUE
-    ===================================== */
+    window.addEventListener(
+        "forecast-phase-change",
+        event => {
 
-    function setDialogue(message) {
+            const phase =
+                event.detail &&
+                event.detail.phase
+                    ? event.detail.phase
+                    : getPhase();
+
+
+            showPhaseSplash(
+                phase
+            );
+
+
+            renderAbilities();
+
+            updateHUD();
+        }
+    );
+
+
+    window.addEventListener(
+        "forecast-phase-reset",
+        () => {
+
+            renderAbilities();
+
+            updateHUD();
+        }
+    );
+
+
+    window.addEventListener(
+        "forecast-weapon-selected",
+        renderAbilities
+    );
+
+
+    window.addEventListener(
+        "forecast-eye-selected",
+        renderAbilities
+    );
+
+
+    window.addEventListener(
+        "forecast-technique-selected",
+        renderAbilities
+    );
+
+
+    /* =====================================================
+       UI REFRESH LOOP
+
+       Keeps cooldown labels moving without
+       rebuilding them 60 times per second.
+    ===================================================== */
+
+    let lastAbilityRefresh = 0;
+
+
+    function uiLoop(time) {
+        updateHUD();
+
 
         if (
-            !dialogueText
+            time -
+            lastAbilityRefresh >
+            150
         ) {
-            return;
+            lastAbilityRefresh =
+                time;
+
+            renderAbilities();
         }
 
 
-        dialogueText.textContent =
-            message;
+        requestAnimationFrame(
+            uiLoop
+        );
     }
 
 
-    /* =====================================
-       FATAL ERROR DISPLAY
-    ===================================== */
+    /* =====================================================
+       INIT
+    ===================================================== */
 
-    function showFatalError(error) {
-
-        const box =
-            document.getElementById(
-                "errorBox"
-            );
-
+    function init() {
+        /*
+            Check modules individually,
+            but DON'T kill the page over
+            optional UI elements.
+        */
 
         if (
-            !box
+            typeof ForecastBattle ===
+            "undefined"
         ) {
+            console.error(
+                "FORECAST: battle.js did not load."
+            );
+
+            showMessage(
+                "battle.js failed to load."
+            );
+
             return;
         }
 
 
-        box.style.display =
-            "block";
+        buildCategoryNav();
 
 
-        box.textContent =
-            "GAME ERROR\n\n" +
-            (
-                error &&
-                error.message
-                    ? error.message
-                    : String(error)
+        if (
+            typeof ForecastWeapons !==
+            "undefined"
+        ) {
+            ForecastWeapons.reset();
+        }
+
+
+        if (
+            typeof ForecastEyes !==
+            "undefined"
+        ) {
+            ForecastEyes.reset();
+        }
+
+
+        if (
+            typeof ForecastTechniques !==
+            "undefined"
+        ) {
+            ForecastTechniques.reset();
+        }
+
+
+        const battleStarted =
+            ForecastBattle.init();
+
+
+        if (!battleStarted) {
+            showMessage(
+                "Battle canvas failed to start."
             );
+
+            return;
+        }
+
+
+        renderAbilities();
+
+        updateHUD();
+
+
+        showMessage(
+            "DRAG TO AIM — RELEASE TO ATTACK",
+            2400
+        );
+
+
+        requestAnimationFrame(
+            uiLoop
+        );
+    }
+
+
+    /* =====================================================
+       START
+    ===================================================== */
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            init,
+            {
+                once: true
+            }
+        );
+    }
+    else {
+        init();
     }
 
 })();
