@@ -17,17 +17,18 @@
     <h1>FORECAST!<span>SANS</span></h1>
     <div class="menu-subtitle">SAME END ANYWAY.</div>
     <div class="menu-character" aria-hidden="true"></div>
+    <div class="menu-select">SELECT</div>
     <div class="menu-actions">
-      <button id="menuStart" class="menu-primary" type="button">START</button>
-      <button id="menuContinue" type="button">CONTINUE</button>
-      <button id="menuSettings" type="button">SETTINGS</button>
+      <button id="menuStart" class="menu-primary" type="button"><span class="menu-cursor">▶</span><span>NEW GAME</span></button>
+      <button id="menuContinue" type="button"><span class="menu-cursor">▶</span><span>CONTINUE</span></button>
+      <button id="menuSettings" type="button"><span class="menu-cursor">▶</span><span>SETTINGS</span></button>
     </div>
     <div id="menuSettingsPanel" class="menu-settings" hidden>
       <label><span>SOUND</span><input id="menuSound" type="checkbox" checked></label>
       <label><span>SCREEN SHAKE</span><input id="menuShake" type="checkbox" checked></label>
       <button id="menuSettingsBack" type="button">BACK</button>
     </div>
-    <div class="menu-footer">DRAG TO AIM • SURVIVE THE FUTURE</div>
+    <div class="menu-footer"><span>↑↓ SELECT</span><span>ENTER CONFIRM</span></div>
   </div>
 </div>
 <div id="game" class="game-hidden">
