@@ -103,10 +103,24 @@
         "WEAPON",
         "EYES",
         "TECHNIQUE",
-        "FORECAST"
+        "FORECAST",
+        "OWNER"
     ];
 
     let selectedCategory = "WEAPON";
+    let ownerUnlocked = false;
+    let selectedOwner = "ADMIN EYE";
+
+    const OWNER_ABILITIES = {
+        "ADMIN EYE": {name:"ADMIN EYE",phase:"1",description:"Reveals the protagonist's predicted path.",attack:"adminEye"},
+        "TIMELINE DELETE": {name:"TIMELINE DELETE",phase:"1",description:"Clears active protagonist attacks.",attack:"timelineDelete"},
+        "PHASE SHIFT": {name:"PHASE SHIFT",phase:"1",description:"Advances one phase for owner testing.",attack:"phaseShift"},
+        "OMNIFORECAST": {name:"OMNIFORECAST",phase:"1",description:"Displays multiple possible movement futures.",attack:"omniforecast"},
+        "REDLINE SCYTHE": {name:"REDLINE SCYTHE",phase:"1",description:"Owner variant of the Execution Scythe.",attack:"redlineScythe"},
+        "DEV BONES": {name:"DEV BONES",phase:"1",description:"Owner-only experimental bone pattern.",attack:"devBones"},
+        "THE SAME END": {name:"THE SAME END",phase:"1",description:"Owner-only prediction collapse sequence.",attack:"sameEnd"}
+    };
+    const OWNER_ORDER = Object.keys(OWNER_ABILITIES);
 
 
     /* =====================================================
@@ -331,7 +345,8 @@
                 () => {
 
                     const category =
-                        button.dataset.category;
+                        String(button.dataset.category || "")
+                            .toUpperCase();
 
 
                     if (
@@ -374,7 +389,7 @@
             button.classList.toggle(
                 "active",
 
-                button.dataset.category ===
+                String(button.dataset.category || "").toUpperCase() ===
                     selectedCategory
             );
         });
@@ -427,6 +442,9 @@
                 return ForecastTechniques
                     .getList();
 
+
+            case "OWNER":
+                return ownerUnlocked ? OWNER_ORDER.map(name => ({...OWNER_ABILITIES[name]})) : [];
 
             case "FORECAST":
 
@@ -485,6 +503,9 @@
                         .getSelected()
                     : "";
 
+
+            case "OWNER":
+                return selectedOwner;
 
             case "FORECAST":
 
@@ -546,6 +567,10 @@
 
                 break;
 
+
+            case "OWNER":
+                if (ownerUnlocked && OWNER_ABILITIES[name]) selectedOwner = name;
+                break;
 
             case "FORECAST": {
 
@@ -1347,6 +1372,19 @@
 
 
         /* =================================================
+           OWNER
+        ================================================= */
+        if (selectedCategory === "OWNER") {
+            if (!ownerUnlocked) return;
+            const ability = OWNER_ABILITIES[selectedOwner];
+            if (!ability) return;
+            window.dispatchEvent(new CustomEvent("forecast-owner-ability", {
+                detail: { attack: ability.attack, target }
+            }));
+            return;
+        }
+
+        /* =================================================
            FORECAST
         ================================================= */
 
@@ -1802,6 +1840,64 @@
     }
 
 
+    function bindDialogue() {
+        const box = document.getElementById("dialogue");
+        const speaker = document.getElementById("speaker");
+        if (!box || typeof ForecastDialogue === "undefined") return;
+
+        box.addEventListener("click", () => {
+            if (ForecastDialogue.isActive()) ForecastDialogue.next();
+        });
+
+        window.addEventListener("forecast-dialogue-line", event => {
+            const line = event.detail || {};
+            if (speaker) speaker.textContent = line.speaker || "";
+            if (dialogueText) dialogueText.textContent = line.text || "";
+            box.classList.add("dialogue-active");
+        });
+
+        window.addEventListener("forecast-dialogue-state", event => {
+            const active = !!(event.detail && event.detail.active);
+            box.classList.toggle("dialogue-active", active);
+        });
+
+        window.addEventListener("forecast-phase-change", event => {
+            const phase = event.detail && event.detail.phase;
+            if (phase) setTimeout(() => ForecastDialogue.play(String(phase)), 120);
+        });
+    }
+
+    function bindOwnerUnlock() {
+        const open=document.getElementById("ownerUnlockButton");
+        const panel=document.getElementById("ownerCodePanel");
+        const input=document.getElementById("ownerCodeInput");
+        const submit=document.getElementById("ownerCodeSubmit");
+        const tab=document.querySelector('[data-category="OWNER"]');
+        if(!open||!panel||!input||!submit||!tab)return;
+        open.addEventListener("click",()=>{panel.hidden=!panel.hidden;if(!panel.hidden)input.focus();});
+        const unlock=()=>{
+            if(input.value==="3214"){
+                ownerUnlocked=true; tab.hidden=false; panel.hidden=true; open.hidden=true;
+                selectedCategory="OWNER"; updateCategoryButtons(); renderAbilities();
+                showMessage("OWNER ACCESS GRANTED");
+            } else { input.value=""; showMessage("ACCESS DENIED"); }
+        };
+        submit.addEventListener("click",unlock);
+        input.addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
+    }
+
+    function bindArsenalToggle() {
+        const arsenal = document.getElementById("arsenal");
+        const toggle = document.getElementById("arsenalToggle");
+        const icon = document.getElementById("arsenalToggleIcon");
+        if (!arsenal || !toggle) return;
+        toggle.addEventListener("click", () => {
+            const closed = arsenal.classList.toggle("closed");
+            toggle.setAttribute("aria-expanded", String(!closed));
+            if (icon) icon.textContent = closed ? "+" : "−";
+        });
+    }
+
     /* =====================================================
        EVENTS
     ===================================================== */
@@ -2034,6 +2130,9 @@
 
 
         buildCategoryNav();
+        bindArsenalToggle();
+        bindOwnerUnlock();
+        bindDialogue();
 
 
         /*
@@ -2074,10 +2173,13 @@
         updateHUD();
 
 
-        showMessage(
-            "DRAG TO AIM — RELEASE TO ATTACK",
-            2400
-        );
+        if (typeof ForecastDialogue !== "undefined") {
+            ForecastDialogue.play("opening", () => {
+                showMessage("DRAG TO AIM — RELEASE TO ATTACK", 2400);
+            });
+        } else {
+            showMessage("DRAG TO AIM — RELEASE TO ATTACK", 2400);
+        }
 
 
         requestAnimationFrame(

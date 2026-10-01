@@ -1,0 +1,9 @@
+{
+  "name": "FORECAST!SANS - Same End Anyway",
+  "short_name": "FORECAST!SANS",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808"
+}

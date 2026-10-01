@@ -1,367 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    >
-
-    <title>FORECAST!SANS — Same End Anyway</title>
-
-    <link
-        rel="stylesheet"
-        href="./css/game.css"
-    >
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#080808">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./forecast-spritesheet.png">
+<title>FORECAST!SANS — Same End Anyway</title>
+<link rel="stylesheet" href="./css/game.css">
 </head>
-
 <body>
-
 <div id="game">
-
-    <!-- =========================
-         TOP HUD
-    ========================== -->
-
-    <header id="hud">
-
-        <div class="hud-block">
-            <span class="hud-small">
-                FORECAST!SANS
-            </span>
-
-            <strong id="phaseLabel">
-                PHASE 1
-            </strong>
-        </div>
-
-
-        <div id="phaseTrack">
-
-            <span
-                class="phase-node active"
-                data-phase="1"
-            >1</span>
-
-            <span
-                class="phase-node"
-                data-phase="1.5"
-            >1.5</span>
-
-            <span
-                class="phase-node"
-                data-phase="2"
-            >2</span>
-
-            <span
-                class="phase-node"
-                data-phase="2.5"
-            >2.5</span>
-
-            <span
-                class="phase-node"
-                data-phase="3"
-            >3</span>
-
-            <span
-                class="phase-node"
-                data-phase="3.5"
-            >3.5</span>
-
-            <span
-                class="phase-node"
-                data-phase="4"
-            >4</span>
-
-            <span
-                class="phase-node"
-                data-phase="4.5"
-            >4.5</span>
-
-            <span
-                class="phase-node"
-                data-phase="5"
-            >5</span>
-
-        </div>
-
-
-        <div class="hud-block enemy-block">
-
-            <span class="hud-small">
-                PROTAGONIST
-            </span>
-
-            <div id="enemyHealth">
-
-                <div id="enemyHealthFill"></div>
-
-            </div>
-
-            <span id="enemyHealthText">
-                100 / 100
-            </span>
-
-        </div>
-
-    </header>
-
-
-    <!-- =========================
-         TURN
-    ========================== -->
-
-    <div id="turnBanner">
-        FORECAST TURN
-    </div>
-
-
-    <!-- =========================
-         CANVAS
-    ========================== -->
-
-    <main id="battleArea">
-
-        <canvas id="gameCanvas"></canvas>
-
-        <div id="phaseSplash"></div>
-
-    </main>
-
-
-    <!-- =========================
-         STAMINA
-    ========================== -->
-
-    <section id="staminaHUD">
-
-        <div class="meter-label">
-
-            <span>STAMINA</span>
-
-            <span id="staminaText">
-                100 / 100
-            </span>
-
-        </div>
-
-        <div id="staminaBar">
-
-            <div id="staminaFill"></div>
-
-        </div>
-
-    </section>
-
-
-    <!-- =========================
-         DIALOGUE
-    ========================== -->
-
-    <section id="dialogue">
-
-        <span class="dialogue-star">
-            *
-        </span>
-
-        <span id="dialogueText">
-            The future is already moving.
-        </span>
-
-    </section>
-
-
-    <!-- =========================
-         ARSENAL
-    ========================== -->
-
-    <section
-        id="arsenal"
-        class="arsenal"
-    >
-
-        <button
-            id="arsenalToggle"
-            class="arsenal-toggle"
-            type="button"
-            aria-expanded="true"
-        >
-
-            <span id="arsenalTitle">
-                ARSENAL
-            </span>
-
-            <span id="arsenalToggleIcon">
-                −
-            </span>
-
-        </button>
-
-
-        <div id="arsenalBody">
-
-            <!-- CATEGORY BUTTONS -->
-
-            <nav id="categoryNav">
-
-                <button
-                    class="category-button active"
-                    data-category="weapon"
-                >
-                    WEAPON
-                </button>
-
-                <button
-                    class="category-button"
-                    data-category="eyes"
-                >
-                    EYES
-                </button>
-
-                <button
-                    class="category-button"
-                    data-category="technique"
-                >
-                    TECHNIQUE
-                </button>
-
-                <button
-                    class="category-button"
-                    data-category="forecast"
-                >
-                    FORECAST
-                </button>
-
-            </nav>
-
-
-            <!-- ABILITY LIST -->
-
-            <div id="abilityPanel"></div>
-
-
-            <!-- ACTION -->
-
-            <div id="controls">
-
-                <button
-                    id="actionButton"
-                    type="button"
-                >
-                    USE
-                </button>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <!-- =========================
-         ERROR DISPLAY
-    ========================== -->
-
-    <pre id="errorBox"></pre>
-
+<header id="hud">
+<div><small>FORECAST!SANS</small><strong id="phaseLabel">PHASE 1</strong></div>
+<div id="phaseTrack"></div>
+<div class="enemy"><small>PROTAGONIST</small><div class="bar"><i id="enemyHealthFill"></i></div><small id="enemyHealthText">100 / 100</small></div>
+</header>
+<div id="turnBanner">FORECAST TURN</div>
+<main id="battleArea"><canvas id="gameCanvas"></canvas><div id="phaseSplash"></div><div id="aimHint">DRAG TO AIM • RELEASE TO ATTACK</div></main>
+<section id="staminaHUD"><div class="meter"><span>STAMINA</span><span id="staminaText">100 / 100</span></div><div class="bar stamina"><i id="staminaFill"></i></div></section>
+<section id="dialogue" aria-live="polite"><div id="speaker">FORECAST</div><div class="dialogue-row"><span>*</span><span id="dialogueText">...</span></div><div id="dialogueContinue">TAP TO CONTINUE</div></section>
+<section id="arsenal">
+<button id="arsenalToggle" type="button"><span>ARSENAL</span><span id="arsenalToggleIcon">−</span></button>
+<div id="arsenalBody">
+<nav id="categoryNav">
+<button class="category-button active" data-category="WEAPON">WEAPON</button>
+<button class="category-button" data-category="EYES">EYES</button>
+<button class="category-button" data-category="TECHNIQUE">TECHNIQUE</button>
+<button class="category-button" data-category="FORECAST">FORECAST</button>
+<button class="category-button owner-tab" data-category="OWNER" hidden>OWNER</button>
+</nav>
+<div id="abilityPanel"></div>
+<div id="ownerUnlock"><button id="ownerUnlockButton" type="button">OWNER ACCESS</button><div id="ownerCodePanel" hidden><input id="ownerCodeInput" inputmode="numeric" maxlength="4" placeholder="CODE" aria-label="Owner code"><button id="ownerCodeSubmit" type="button">UNLOCK</button></div></div>
 </div>
-
-
-<!-- =============================
-     GAME MODULES
-============================== -->
-
+</section>
+<pre id="errorBox"></pre>
+</div>
 <script src="./js/phases.js"></script>
 <script src="./js/weapons.js"></script>
 <script src="./js/eyes.js"></script>
 <script src="./js/techniques.js"></script>
+<script src="./js/dialogue.js"></script>
 <script src="./js/battle.js"></script>
 <script src="./js/game.js"></script>
-
-
-<!-- =============================
-     COLLAPSIBLE ARSENAL
-============================== -->
-
 <script>
-
-(() => {
-
-    const arsenal =
-        document.getElementById(
-            "arsenal"
-        );
-
-    const button =
-        document.getElementById(
-            "arsenalToggle"
-        );
-
-    const body =
-        document.getElementById(
-            "arsenalBody"
-        );
-
-    const icon =
-        document.getElementById(
-            "arsenalToggleIcon"
-        );
-
-
-    if (
-        !arsenal ||
-        !button ||
-        !body ||
-        !icon
-    ) {
-        return;
-    }
-
-
-    let open = true;
-
-
-    function setOpen(value) {
-
-        open = value;
-
-        arsenal.classList.toggle(
-            "closed",
-            !open
-        );
-
-
-        button.setAttribute(
-            "aria-expanded",
-            String(open)
-        );
-
-
-        icon.textContent =
-            open
-                ? "−"
-                : "+";
-    }
-
-
-    button.addEventListener(
-        "click",
-        () => {
-
-            setOpen(
-                !open
-            );
-
-        }
-    );
-
-
-    setOpen(true);
-
-})();
-
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+}
 </script>
-
+<script src="./js/offline.js"></script>
 </body>
 </html>

@@ -346,6 +346,8 @@ const ForecastBattle = (() => {
             0
         );
 
+        ctx.imageSmoothingEnabled = false;
+
 
         /*
             Leave room ABOVE the box
@@ -480,16 +482,12 @@ const ForecastBattle = (() => {
         ) {
 
             case "idle": {
-                const frame =
-                    Math.floor(
-                        time / 420
-                    ) % 3;
-
-                return [
-                    "idle_1",
-                    "idle_2",
-                    "idle_3"
-                ][frame];
+                const cycle = Math.floor(time / 125) % 48;
+                if (cycle === 34) return "blink";
+                if (cycle === 41) return "look_down";
+                if (cycle === 45) return "look_up";
+                const frame = Math.floor(time / 240) % 4;
+                return ["idle_1","idle_2","idle_3","idle_2"][frame];
             }
 
 
@@ -500,7 +498,7 @@ const ForecastBattle = (() => {
                     90
                 )
                     ? "gun_pose"
-                    : "gun_fire";
+                    : ((Math.floor((time - forecast.animationStarted) / 65) % 2) ? "gun_pose" : "gun_fire");
 
 
             case "bones":
@@ -519,8 +517,13 @@ const ForecastBattle = (() => {
                 return "scythe_ready";
 
 
-            case "scythe_swing":
-                return "scythe_swing";
+            case "scythe_swing": {
+                const age = time - forecast.animationStarted;
+                if (age < 90) return "summon_scythe";
+                if (age < 180) return "scythe_ready";
+                if (age < 360) return "scythe_swing";
+                return "scythe_finish";
+            }
 
 
             case "scythe_finish":
@@ -637,8 +640,8 @@ const ForecastBattle = (() => {
                     image.offsetX,
                 forecast.y +
                     image.offsetY,
-                132,
-                75
+                116,
+                66
             );
 
             ctx.restore();
@@ -649,8 +652,8 @@ const ForecastBattle = (() => {
             frameName,
             forecast.x,
             forecast.y,
-            145,
-            82
+            124,
+            70
         );
 
 
@@ -749,7 +752,7 @@ const ForecastBattle = (() => {
             SPRITE_CELL_H,
 
             x - drawW / 2,
-            y - drawH / 2,
+            y - drawH * 0.56,
 
             drawW,
             drawH
@@ -761,153 +764,77 @@ const ForecastBattle = (() => {
        PROTAGONIST AI
     ===================================================== */
 
-    function updateProtagonist(
-        dt,
-        time
-    ) {
-        protagonist.history.push({
-            x: protagonist.x,
-            y: protagonist.y,
-            time
-        });
+    function getPhaseDifficulty() {
+        if (typeof ForecastPhases === "undefined") return 0;
+        const i = ForecastPhases.getPhaseIndex();
+        return clamp(i / 8, 0, 1);
+    }
 
-
-        while (
-            protagonist.history.length >
-            20
-        ) {
-            protagonist.history.shift();
+    function projectileThreat(time) {
+        let best = null;
+        let bestScore = Infinity;
+        for (const p of playerProjectiles) {
+            const rx = protagonist.x - p.x;
+            const ry = protagonist.y - p.y;
+            const speed2 = p.vx * p.vx + p.vy * p.vy || 1;
+            const t = clamp((rx * p.vx + ry * p.vy) / speed2, 0, .55);
+            const px = p.x + p.vx * t;
+            const py = p.y + p.vy * t;
+            const d = distance(px, py, protagonist.x, protagonist.y);
+            if (d < bestScore) { bestScore = d; best = {p,t,d}; }
         }
+        return best && best.d < 48 ? best : null;
+    }
 
+    function updateProtagonist(dt,time) {
+        protagonist.history.push({x:protagonist.x,y:protagonist.y,time});
+        while (protagonist.history.length > 20) protagonist.history.shift();
+        if (time < protagonist.frozenUntil) return;
 
-        if (
-            time <
-            protagonist.frozenUntil
-        ) {
-            return;
-        }
+        const difficulty = getPhaseDifficulty();
+        const threat = projectileThreat(time);
+        let speed = protagonist.speed * (1 + difficulty * .22);
+        if (time < protagonist.deadlockedUntil) speed *= .35;
+        if (eyeEffects.paradoxUntil > time) speed *= .75;
 
-
-        if (
-            time >
-            protagonist.aiChangeAt
-        ) {
-            protagonist.aiChangeAt =
-                time +
-                random(
-                    350,
-                    900
-                );
-
-
-            const angle =
-                random(
-                    0,
-                    TAU
-                );
-
-
-            let speed =
-                protagonist.speed;
-
-
-            if (
-                time <
-                protagonist.deadlockedUntil
-            ) {
-                speed *= 0.35;
+        if (threat && time > protagonist.aiChangeAt - 120) {
+            // Dodge perpendicular to the incoming attack instead of magically
+            // knowing where every projectile will land.
+            const p = threat.p;
+            let dx = -p.vy, dy = p.vx;
+            const n = normalizeVector(dx,dy);
+            const marginA = Math.min(
+                protagonist.x - arena.left,
+                arena.right - protagonist.x
+            );
+            if ((protagonist.x + n.x * 45 < arena.left + 15) ||
+                (protagonist.x + n.x * 45 > arena.right - 15) ||
+                (protagonist.y + n.y * 45 < arena.top + 15) ||
+                (protagonist.y + n.y * 45 > arena.bottom - 15)) {
+                n.x *= -1; n.y *= -1;
             }
-
-
-            if (
-                eyeEffects.paradoxUntil >
-                time
-            ) {
-                speed *= 0.75;
-            }
-
-
-            protagonist.vx =
-                Math.cos(angle) *
-                speed;
-
-            protagonist.vy =
-                Math.sin(angle) *
-                speed;
+            protagonist.vx = n.x * speed * (1.12 + difficulty * .2);
+            protagonist.vy = n.y * speed * (1.12 + difficulty * .2);
+            protagonist.aiChangeAt = time + random(170,300);
+        } else if (time > protagonist.aiChangeAt) {
+            protagonist.aiChangeAt = time + random(260, 700 - difficulty * 180);
+            // Mix strafing around Forecast with irregular movement.
+            const toward = Math.atan2(forecast.y-protagonist.y,forecast.x-protagonist.x);
+            const angle = Math.random() < .62
+                ? toward + (Math.random()<.5?-1:1) * (Math.PI/2 + random(-.35,.35))
+                : random(0,TAU);
+            protagonist.vx = Math.cos(angle)*speed;
+            protagonist.vy = Math.sin(angle)*speed;
         }
 
-
-        protagonist.x +=
-            protagonist.vx *
-            dt;
-
-        protagonist.y +=
-            protagonist.vy *
-            dt;
-
-
-        if (
-            protagonist.x <
-            arena.left +
-            protagonist.radius
-        ) {
-            protagonist.x =
-                arena.left +
-                protagonist.radius;
-
-            protagonist.vx =
-                Math.abs(
-                    protagonist.vx
-                );
-        }
-
-
-        if (
-            protagonist.x >
-            arena.right -
-            protagonist.radius
-        ) {
-            protagonist.x =
-                arena.right -
-                protagonist.radius;
-
-            protagonist.vx =
-                -Math.abs(
-                    protagonist.vx
-                );
-        }
-
-
-        if (
-            protagonist.y <
-            arena.top +
-            protagonist.radius
-        ) {
-            protagonist.y =
-                arena.top +
-                protagonist.radius;
-
-            protagonist.vy =
-                Math.abs(
-                    protagonist.vy
-                );
-        }
-
-
-        if (
-            protagonist.y >
-            arena.bottom -
-            protagonist.radius
-        ) {
-            protagonist.y =
-                arena.bottom -
-                protagonist.radius;
-
-            protagonist.vy =
-                -Math.abs(
-                    protagonist.vy
-                );
-        }
+        protagonist.x += protagonist.vx*dt;
+        protagonist.y += protagonist.vy*dt;
+        const minX=arena.left+protagonist.radius,maxX=arena.right-protagonist.radius;
+        const minY=arena.top+protagonist.radius,maxY=arena.bottom-protagonist.radius;
+        if(protagonist.x<minX){protagonist.x=minX;protagonist.vx=Math.abs(protagonist.vx)}
+        if(protagonist.x>maxX){protagonist.x=maxX;protagonist.vx=-Math.abs(protagonist.vx)}
+        if(protagonist.y<minY){protagonist.y=minY;protagonist.vy=Math.abs(protagonist.vy)}
+        if(protagonist.y>maxY){protagonist.y=maxY;protagonist.vy=-Math.abs(protagonist.vy)}
     }
 
 
@@ -957,6 +884,14 @@ const ForecastBattle = (() => {
                 targetY - y
             );
 
+
+        effects.push({
+            type: "muzzleFlash",
+            x, y,
+            angle: Math.atan2(targetY - y, targetX - x),
+            created: now(),
+            life: type === "dmr" ? 120 : 70
+        });
 
         playerProjectiles.push({
             x,
@@ -1681,6 +1616,13 @@ const ForecastBattle = (() => {
 
                 positions.forEach(
                     (position, index) => {
+                        effects.push({
+                            type: "crossfireWarning",
+                            x1: position.x, y1: position.y,
+                            x2: target.x, y2: target.y,
+                            created: now() + index * 70,
+                            life: 320
+                        });
 
                         setTimeout(() => {
 
@@ -1703,7 +1645,7 @@ const ForecastBattle = (() => {
                                     "crossfire"
                             });
 
-                        }, index * 90);
+                        }, 320 + index * 70);
                     }
                 );
 
@@ -1743,7 +1685,7 @@ const ForecastBattle = (() => {
 
 
                 effects.push({
-                    type: "warning",
+                    type: "falseWarning",
 
                     x: fake.x,
                     y: fake.y,
@@ -2855,11 +2797,11 @@ const ForecastBattle = (() => {
         if (
             enemyAttackTimer <= 0
         ) {
-            enemyAttackTimer =
-                random(
-                    0.42,
-                    0.75
-                );
+            const difficulty = getPhaseDifficulty();
+            enemyAttackTimer = random(
+                Math.max(.28, .42 - difficulty * .12),
+                Math.max(.48, .75 - difficulty * .20)
+            );
 
 
             spawnEnemyAttack(
@@ -2870,10 +2812,9 @@ const ForecastBattle = (() => {
 
 
     function spawnEnemyAttack(time) {
-        const pattern =
-            Math.floor(
-                random(0, 4)
-            );
+        const difficulty = getPhaseDifficulty();
+        const patternCount = difficulty > .62 ? 4 : (difficulty > .25 ? 3 : 2);
+        const pattern = Math.floor(random(0, patternCount));
 
 
         switch (pattern) {
@@ -3744,19 +3685,18 @@ const ForecastBattle = (() => {
                     break;
 
 
-                case "construct":
-
-                    ctx.fillStyle =
-                        "#ff2020";
-
-                    ctx.fillRect(
-                        projectile.x - 4,
-                        projectile.y - 4,
-                        8,
-                        8
-                    );
-
+                case "construct": {
+                    const a = Math.atan2(projectile.vy, projectile.vx);
+                    ctx.translate(projectile.x, projectile.y);
+                    ctx.rotate(a);
+                    ctx.strokeStyle = "#ff2020";
+                    ctx.fillStyle = "#090909";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(8,0); ctx.lineTo(0,-6); ctx.lineTo(-8,0); ctx.lineTo(0,6); ctx.closePath();
+                    ctx.fill(); ctx.stroke();
                     break;
+                }
 
 
                 case "illusionShot":
@@ -4179,18 +4119,19 @@ const ForecastBattle = (() => {
 
 
             ctx.beginPath();
-
-            ctx.moveTo(
-                beam.x1,
-                beam.y1
-            );
-
-            ctx.lineTo(
-                beam.x2,
-                beam.y2
-            );
-
+            ctx.moveTo(beam.x1, beam.y1);
+            ctx.lineTo(beam.x2, beam.y2);
             ctx.stroke();
+
+            if (time >= beam.activeAt) {
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = beam.type === "inevitable" ? "#ff2020" : "#ff3030";
+                ctx.lineWidth = Math.max(2, beam.width * .28);
+                ctx.beginPath();
+                ctx.moveTo(beam.x1, beam.y1);
+                ctx.lineTo(beam.x2, beam.y2);
+                ctx.stroke();
+            }
 
 
             ctx.restore();
@@ -4287,6 +4228,17 @@ const ForecastBattle = (() => {
                 effect.type
             ) {
 
+                case "muzzleFlash": {
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.translate(effect.x, effect.y);
+                    ctx.rotate(effect.angle || 0);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, -2, 10 + progress * 9, 4);
+                    ctx.fillStyle = "#ff2020";
+                    ctx.fillRect(2, -4, 6, 8);
+                    break;
+                }
+
                 case "aimLine":
 
                     ctx.globalAlpha =
@@ -4313,6 +4265,30 @@ const ForecastBattle = (() => {
 
                     break;
 
+
+                case "crossfireWarning": {
+                    if (time < effect.created) break;
+                    ctx.globalAlpha = Math.max(0, 1 - progress) * .65;
+                    ctx.strokeStyle = "#ff2020";
+                    ctx.setLineDash([6,5]);
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(effect.x1,effect.y1); ctx.lineTo(effect.x2,effect.y2); ctx.stroke();
+                    ctx.setLineDash([]);
+                    break;
+                }
+
+                case "falseWarning": {
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.strokeStyle = "#ff2020";
+                    ctx.lineWidth = 2;
+                    const r = 24 + progress * 24;
+                    ctx.beginPath(); ctx.arc(effect.x,effect.y,r,0,TAU); ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(effect.x-r*.7,effect.y-r*.7); ctx.lineTo(effect.x+r*.7,effect.y+r*.7);
+                    ctx.moveTo(effect.x+r*.7,effect.y-r*.7); ctx.lineTo(effect.x-r*.7,effect.y+r*.7);
+                    ctx.stroke();
+                    break;
+                }
 
                 case "warning":
                 case "realWarning":
@@ -4363,8 +4339,20 @@ const ForecastBattle = (() => {
                     break;
 
 
+                case "inevitableMark": {
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.translate(effect.x,effect.y);
+                    ctx.rotate(progress * Math.PI);
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.shadowBlur = 12; ctx.shadowColor = "#ff2020";
+                    ctx.lineWidth = 2;
+                    const r = 10 + progress * 25;
+                    ctx.strokeRect(-r,-r,r*2,r*2);
+                    ctx.beginPath(); ctx.arc(0,0,r*.62,0,TAU); ctx.stroke();
+                    break;
+                }
+
                 case "prediction":
-                case "inevitableMark":
 
                     ctx.globalAlpha =
                         1 - progress;
@@ -4893,6 +4881,40 @@ const ForecastBattle = (() => {
             }
         );
 
+
+        window.addEventListener("forecast-owner-ability", event => {
+            const d=event.detail||{}, target=sanitizeTarget(d.target);
+            switch(d.attack){
+                case "adminEye":
+                    setAnimation("eye",650);
+                    for(let i=1;i<=6;i++){const p=predictProtagonist(i*.16);effects.push({type:"prediction",x:p.x,y:p.y,created:now(),life:1100});}
+                    break;
+                case "timelineDelete":
+                    setAnimation("eye",650); enemyProjectiles.length=0;
+                    effects.push({type:"nullBurst",x:forecast.x,y:forecast.y,created:now(),life:700});
+                    emitMessage("TIMELINE CLEARED"); break;
+                case "phaseShift":
+                    if(typeof ForecastPhases!=="undefined") ForecastPhases.debugAdvance();
+                    break;
+                case "omniforecast":
+                    setAnimation("eye",900);
+                    [-.35,0,.35].forEach(offset=>{for(let i=1;i<=5;i++){const p=predictProtagonist(i*.18);effects.push({type:"prediction",x:clamp(p.x+offset*i*18,arena.left+10,arena.right-10),y:p.y,created:now()+i*35,life:1400});}});
+                    break;
+                case "redlineScythe":
+                    setAnimation("scythe_swing",600);
+                    for(let i=-2;i<=2;i++) slashes.push({x:forecast.x,y:forecast.y+20,radius:90+i*13,angle:Math.atan2(target.y-forecast.y,target.x-forecast.x)+i*.13,width:12,damage:12,created:now()+Math.abs(i)*45,life:650,hit:false});
+                    break;
+                case "devBones":
+                    setAnimation("bones",800);
+                    for(let i=0;i<18;i++){const a=(TAU/18)*i;createPlayerProjectile({x:target.x+Math.cos(a)*120,y:target.y+Math.sin(a)*120,targetX:target.x,targetY:target.y,speed:360,radius:6,damage:4,type:"bone",life:1500});}
+                    break;
+                case "sameEnd":
+                    setAnimation("phase_change",1300);
+                    for(let i=0;i<8;i++){const a=TAU*i/8;effects.push({type:"inevitableMark",x:target.x+Math.cos(a)*70,y:target.y+Math.sin(a)*70,created:now()+i*45,life:900});}
+                    setTimeout(()=>inevitableAttack(target),500);
+                    break;
+            }
+        });
 
         window.addEventListener(
             "forecast-phase-change",
