@@ -1874,7 +1874,7 @@
         const submit=document.getElementById("ownerCodeSubmit");
         const tab=document.querySelector('[data-category="OWNER"]');
         if(!open||!panel||!input||!submit||!tab)return;
-        open.addEventListener("click",()=>{panel.hidden=!panel.hidden;if(!panel.hidden)input.focus();});
+        open.addEventListener("click",()=>{panel.hidden=!panel.hidden;if(!panel.hidden){input.value="";setTimeout(()=>input.focus(),0);}});
         const unlock=()=>{
             if(input.value==="3214"){
                 ownerUnlocked=true; tab.hidden=false; panel.hidden=true; open.hidden=true;
@@ -1882,6 +1882,7 @@
                 showMessage("OWNER ACCESS GRANTED");
             } else { input.value=""; showMessage("ACCESS DENIED"); }
         };
+        submit.addEventListener("pointerup",e=>{e.preventDefault();unlock();});
         submit.addEventListener("click",unlock);
         input.addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
     }
