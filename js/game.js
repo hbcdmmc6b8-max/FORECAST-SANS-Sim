@@ -103,10 +103,24 @@
         "WEAPON",
         "EYES",
         "TECHNIQUE",
-        "FORECAST"
+        "FORECAST",
+        "OWNER"
     ];
 
     let selectedCategory = "WEAPON";
+    let ownerUnlocked = false;
+    let selectedOwner = "ADMIN EYE";
+
+    const OWNER_ABILITIES = {
+        "ADMIN EYE": {name:"ADMIN EYE",phase:"1",description:"Reveals the protagonist's predicted path.",attack:"adminEye"},
+        "TIMELINE DELETE": {name:"TIMELINE DELETE",phase:"1",description:"Clears active protagonist attacks.",attack:"timelineDelete"},
+        "PHASE SHIFT": {name:"PHASE SHIFT",phase:"1",description:"Advances one phase for owner testing.",attack:"phaseShift"},
+        "OMNIFORECAST": {name:"OMNIFORECAST",phase:"1",description:"Displays multiple possible movement futures.",attack:"omniforecast"},
+        "REDLINE SCYTHE": {name:"REDLINE SCYTHE",phase:"1",description:"Owner variant of the Execution Scythe.",attack:"redlineScythe"},
+        "DEV BONES": {name:"DEV BONES",phase:"1",description:"Owner-only experimental bone pattern.",attack:"devBones"},
+        "THE SAME END": {name:"THE SAME END",phase:"1",description:"Owner-only prediction collapse sequence.",attack:"sameEnd"}
+    };
+    const OWNER_ORDER = Object.keys(OWNER_ABILITIES);
 
 
     /* =====================================================
@@ -429,6 +443,9 @@
                     .getList();
 
 
+            case "OWNER":
+                return ownerUnlocked ? OWNER_ORDER.map(name => ({...OWNER_ABILITIES[name]})) : [];
+
             case "FORECAST":
 
                 return FORECAST_ORDER.map(
@@ -486,6 +503,9 @@
                         .getSelected()
                     : "";
 
+
+            case "OWNER":
+                return selectedOwner;
 
             case "FORECAST":
 
@@ -547,6 +567,10 @@
 
                 break;
 
+
+            case "OWNER":
+                if (ownerUnlocked && OWNER_ABILITIES[name]) selectedOwner = name;
+                break;
 
             case "FORECAST": {
 
@@ -1830,6 +1854,25 @@
         });
     }
 
+    function bindOwnerUnlock() {
+        const open=document.getElementById("ownerUnlockButton");
+        const panel=document.getElementById("ownerCodePanel");
+        const input=document.getElementById("ownerCodeInput");
+        const submit=document.getElementById("ownerCodeSubmit");
+        const tab=document.querySelector('[data-category="OWNER"]');
+        if(!open||!panel||!input||!submit||!tab)return;
+        open.addEventListener("click",()=>{panel.hidden=!panel.hidden;if(!panel.hidden)input.focus();});
+        const unlock=()=>{
+            if(input.value==="3214"){
+                ownerUnlocked=true; tab.hidden=false; panel.hidden=true; open.hidden=true;
+                selectedCategory="OWNER"; updateCategoryButtons(); renderAbilities();
+                showMessage("OWNER ACCESS GRANTED");
+            } else { input.value=""; showMessage("ACCESS DENIED"); }
+        };
+        submit.addEventListener("click",unlock);
+        input.addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
+    }
+
     function bindArsenalToggle() {
         const arsenal = document.getElementById("arsenal");
         const toggle = document.getElementById("arsenalToggle");
@@ -2075,6 +2118,7 @@
 
         buildCategoryNav();
         bindArsenalToggle();
+        bindOwnerUnlock();
         bindDialogue();
 
 
