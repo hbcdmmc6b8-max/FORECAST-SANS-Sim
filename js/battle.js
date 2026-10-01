@@ -1,6 +1,6 @@
 /* =========================================
-   FORECAST!SANS — BATTLE ENGINE V0.4
-   AUTO-DODGE SYSTEM
+   FORECAST!SANS — BATTLE ENGINE V0.4.1
+   REAL FORECAST SPRITE + AUTO-DODGE
 ========================================= */
 
 const Battle = (() => {
@@ -17,23 +17,154 @@ const Battle = (() => {
 
 
     /* =====================================
+       FORECAST!SANS SPRITE SHEET
+    ===================================== */
+
+    const forecastSheet = new Image();
+
+    forecastSheet.src =
+        "./Forecast!Sans Pixel Character Sheet.png";
+
+    let forecastSheetReady = false;
+
+
+    forecastSheet.addEventListener(
+        "load",
+        () => {
+
+            forecastSheetReady = true;
+
+            console.log(
+                "Forecast!Sans sprite sheet loaded."
+            );
+        }
+    );
+
+
+    forecastSheet.addEventListener(
+        "error",
+        () => {
+
+            console.error(
+                "Could not load Forecast!Sans sprite sheet."
+            );
+
+            message(
+                "Forecast sprite failed to load."
+            );
+        }
+    );
+
+
+    /*
+        PHASE 1 crop from the Phase Evolution
+        row of our Forecast!Sans sheet.
+
+        We can fine-tune this crop after seeing
+        the first in-game result.
+    */
+
+    const FORECAST_SPRITES = {
+
+        "1": {
+            x: 34,
+            y: 674,
+            width: 128,
+            height: 145
+        },
+
+        "1.5": {
+            x: 166,
+            y: 674,
+            width: 139,
+            height: 145
+        },
+
+        "2": {
+            x: 309,
+            y: 674,
+            width: 148,
+            height: 145
+        },
+
+        "2.5": {
+            x: 462,
+            y: 674,
+            width: 148,
+            height: 145
+        },
+
+        "3": {
+            x: 614,
+            y: 674,
+            width: 151,
+            height: 145
+        },
+
+        "3.5": {
+            x: 770,
+            y: 674,
+            width: 148,
+            height: 145
+        },
+
+        "4": {
+            x: 922,
+            y: 674,
+            width: 149,
+            height: 145
+        },
+
+        "4.5": {
+            x: 1076,
+            y: 674,
+            width: 148,
+            height: 145
+        },
+
+        "5": {
+            x: 1228,
+            y: 674,
+            width: 296,
+            height: 145
+        }
+    };
+
+
+    /* =====================================
        TURN SYSTEM
     ===================================== */
 
     const TURN = {
+
         FORECAST: "FORECAST",
+
         ENEMY: "ENEMY",
+
         TRANSITION: "TRANSITION",
+
         ENDED: "ENDED"
     };
 
-    let turn = TURN.FORECAST;
-    let turnStarted = 0;
 
-    const FORECAST_TURN_LENGTH = 8000;
-    const ENEMY_TURN_LENGTH = 6000;
+    let turn =
+        TURN.FORECAST;
 
-    let transitionUntil = 0;
+
+    let turnStarted =
+        0;
+
+
+    const FORECAST_TURN_LENGTH =
+        8000;
+
+
+    const ENEMY_TURN_LENGTH =
+        6000;
+
+
+    let transitionUntil =
+        0;
 
 
     /* =====================================
@@ -41,48 +172,91 @@ const Battle = (() => {
     ===================================== */
 
     const arena = {
+
         left: 28,
+
         top: 120,
+
         right: 0,
+
         bottom: 0
     };
 
 
     /* =====================================
-       FORECAST
+       FORECAST!SANS
     ===================================== */
 
     const forecast = {
-        x: 160,
-        y: 260,
 
-        radius: 17,
+        x: 0,
+
+        y: 0,
+
+        radius: 23,
 
         invulnerableUntil: 0
     };
+
+
+    /*
+        Forecast's resting boss position.
+
+        This is the top-center area you
+        circled in the screenshot.
+    */
+
+    function getForecastHomePosition() {
+
+        return {
+
+            x:
+                width * 0.5,
+
+            y:
+                arena.top + 70
+        };
+    }
 
 
     /* =====================================
        AUTO-DODGE / STAMINA
     ===================================== */
 
-    const STAMINA_MAX = 100;
+    const STAMINA_MAX =
+        100;
 
-    const STAMINA_REGEN_PER_SECOND = 16;
 
-    const BASE_DODGE_COST = 12;
+    const STAMINA_REGEN_PER_SECOND =
+        16;
 
-    const DODGE_DISTANCE = 72;
 
-    const DODGE_INVULNERABILITY = 260;
+    const BASE_DODGE_COST =
+        12;
 
-    let stamina = STAMINA_MAX;
 
-    let dodgeChain = 0;
+    const DODGE_DISTANCE =
+        78;
 
-    let lastDodgeAt = 0;
 
-    let dodgeAfterimages = [];
+    const DODGE_INVULNERABILITY =
+        260;
+
+
+    let stamina =
+        STAMINA_MAX;
+
+
+    let dodgeChain =
+        0;
+
+
+    let lastDodgeAt =
+        0;
+
+
+    let dodgeAfterimages =
+        [];
 
 
     /* =====================================
@@ -90,80 +264,117 @@ const Battle = (() => {
     ===================================== */
 
     const enemy = {
+
         x: 0,
+
         y: 0,
 
         radius: 10,
 
         hp: 100,
+
         maxHP: 100,
 
         speed: 115,
 
         targetX: 0,
+
         targetY: 0,
 
         nextTargetAt: 0,
+
         frozenUntil: 0
     };
 
 
     /* =====================================
-       OBJECTS
+       BATTLE OBJECTS
     ===================================== */
 
-    let forecastProjectiles = [];
+    let forecastProjectiles =
+        [];
 
-    let enemyProjectiles = [];
 
-    let hazards = [];
+    let enemyProjectiles =
+        [];
 
-    let effects = [];
 
-    let illusions = [];
+    let hazards =
+        [];
 
-    let scythe = null;
 
-    let beam = null;
+    let effects =
+        [];
 
-    let decoy = null;
+
+    let illusions =
+        [];
+
+
+    let scythe =
+        null;
+
+
+    let beam =
+        null;
+
+
+    let decoy =
+        null;
 
 
     /* =====================================
        EYE STATES
     ===================================== */
 
-    let domainUntil = 0;
+    let domainUntil =
+        0;
 
-    let heroismUntil = 0;
 
-    let deadlockUntil = 0;
+    let heroismUntil =
+        0;
 
-    let observeUntil = 0;
 
-    let vectorUntil = 0;
+    let deadlockUntil =
+        0;
 
-    let momentUntil = 0;
 
-    let evolutionUntil = 0;
+    let observeUntil =
+        0;
+
+
+    let vectorUntil =
+        0;
+
+
+    let momentUntil =
+        0;
+
+
+    let evolutionUntil =
+        0;
 
 
     /* =====================================
-       EVOLUTION / ADAPTATION
+       ADAPTATION
     ===================================== */
 
     const adaptation = {
+
         aimedShotsSeen: 0,
+
         spreadShotsSeen: 0,
+
         speedBonus: 0
     };
 
 
     /* =====================================
-       FORECAST DISPLAY
+       PREDICTION
     ===================================== */
 
-    let predictionUntil = 0;
+    let predictionUntil =
+        0;
 
 
     /* =====================================
@@ -173,39 +384,63 @@ const Battle = (() => {
     function init(canvasElement) {
 
         if (!canvasElement) {
+
             throw new Error(
                 "Battle.init: canvas missing"
             );
         }
 
-        canvas = canvasElement;
 
-        ctx = canvas.getContext("2d");
+        canvas =
+            canvasElement;
+
+
+        ctx =
+            canvas.getContext(
+                "2d"
+            );
+
 
         if (!ctx) {
+
             throw new Error(
                 "Battle.init: 2D canvas unavailable"
             );
         }
 
+
         resize();
+
 
         window.addEventListener(
             "resize",
             resize
         );
 
+
         installEvents();
+
 
         reset();
 
-        running = true;
 
-        lastFrame = performance.now();
+        running =
+            true;
 
-        requestAnimationFrame(loop);
+
+        lastFrame =
+            performance.now();
+
+
+        requestAnimationFrame(
+            loop
+        );
     }
 
+
+    /* =====================================
+       RESIZE
+    ===================================== */
 
     function resize() {
 
@@ -213,26 +448,41 @@ const Battle = (() => {
             return;
         }
 
-        width = window.innerWidth;
 
-        height = window.innerHeight;
+        width =
+            window.innerWidth;
 
-        dpr = Math.min(
-            window.devicePixelRatio || 1,
-            2
-        );
+
+        height =
+            window.innerHeight;
+
+
+        dpr =
+            Math.min(
+                window.devicePixelRatio || 1,
+                2
+            );
+
 
         canvas.width =
-            Math.floor(width * dpr);
+            Math.floor(
+                width * dpr
+            );
+
 
         canvas.height =
-            Math.floor(height * dpr);
+            Math.floor(
+                height * dpr
+            );
+
 
         canvas.style.width =
             `${width}px`;
 
+
         canvas.style.height =
             `${height}px`;
+
 
         ctx.setTransform(
             dpr,
@@ -243,8 +493,10 @@ const Battle = (() => {
             0
         );
 
+
         arena.right =
             width - 28;
+
 
         arena.bottom =
             Math.max(
@@ -252,31 +504,50 @@ const Battle = (() => {
                 height - 290
             );
 
+
+        /*
+            V0.4.1
+
+            Forecast is NOT clamped like a
+            player character anymore.
+
+            He has a boss position.
+        */
+
+        const home =
+            getForecastHomePosition();
+
+
         forecast.x =
-            clamp(
-                forecast.x,
-                arena.left + 25,
-                arena.right - 25
-            );
+            home.x;
+
 
         forecast.y =
-            clamp(
-                forecast.y,
-                arena.top + 25,
-                arena.bottom - 25
-            );
+            home.y;
+
 
         enemy.x =
             clamp(
-                enemy.x || width * 0.72,
+                enemy.x ||
+                    width * 0.5,
+
                 arena.left + 25,
+
                 arena.right - 25
             );
 
+
         enemy.y =
             clamp(
-                enemy.y || height * 0.35,
-                arena.top + 25,
+                enemy.y ||
+                    arena.top +
+                    (
+                        arena.bottom -
+                        arena.top
+                    ) * 0.65,
+
+                arena.top + 120,
+
                 arena.bottom - 25
             );
     }
@@ -286,15 +557,21 @@ const Battle = (() => {
        EVENTS
     ===================================== */
 
-    let eventsInstalled = false;
+    let eventsInstalled =
+        false;
+
 
     function installEvents() {
 
-        if (eventsInstalled) {
+        if (
+            eventsInstalled
+        ) {
             return;
         }
 
-        eventsInstalled = true;
+
+        eventsInstalled =
+            true;
 
 
         window.addEventListener(
@@ -351,88 +628,149 @@ const Battle = (() => {
         const now =
             performance.now();
 
+
+        const home =
+            getForecastHomePosition();
+
+
         forecast.x =
-            width * 0.28;
+            home.x;
+
 
         forecast.y =
-            Math.min(
-                height * 0.37,
-                arena.bottom - 30
-            );
-
-        forecast.invulnerableUntil = 0;
+            home.y;
 
 
-        stamina = STAMINA_MAX;
+        forecast.invulnerableUntil =
+            0;
 
-        dodgeChain = 0;
 
-        lastDodgeAt = 0;
+        stamina =
+            STAMINA_MAX;
 
-        dodgeAfterimages = [];
 
+        dodgeChain =
+            0;
+
+
+        lastDodgeAt =
+            0;
+
+
+        dodgeAfterimages =
+            [];
+
+
+        /*
+            Protagonist begins lower in the
+            battle arena, underneath Forecast.
+        */
 
         enemy.x =
-            width * 0.72;
+            width * 0.5;
+
 
         enemy.y =
-            Math.min(
-                height * 0.37,
-                arena.bottom - 30
-            );
+            arena.top +
+            (
+                arena.bottom -
+                arena.top
+            ) * 0.68;
+
 
         enemy.hp =
             enemy.maxHP;
 
-        enemy.frozenUntil = 0;
+
+        enemy.frozenUntil =
+            0;
+
 
         chooseEnemyTarget();
 
 
-        forecastProjectiles = [];
-
-        enemyProjectiles = [];
-
-        hazards = [];
-
-        effects = [];
-
-        illusions = [];
-
-        scythe = null;
-
-        beam = null;
-
-        decoy = null;
+        forecastProjectiles =
+            [];
 
 
-        domainUntil = 0;
-
-        heroismUntil = 0;
-
-        deadlockUntil = 0;
-
-        observeUntil = 0;
-
-        vectorUntil = 0;
-
-        momentUntil = 0;
-
-        evolutionUntil = 0;
-
-        predictionUntil = 0;
+        enemyProjectiles =
+            [];
 
 
-        adaptation.aimedShotsSeen = 0;
-
-        adaptation.spreadShotsSeen = 0;
-
-        adaptation.speedBonus = 0;
+        hazards =
+            [];
 
 
-        turn = TURN.FORECAST;
+        effects =
+            [];
 
-        turnStarted = now;
+
+        illusions =
+            [];
+
+
+        scythe =
+            null;
+
+
+        beam =
+            null;
+
+
+        decoy =
+            null;
+
+
+        domainUntil =
+            0;
+
+
+        heroismUntil =
+            0;
+
+
+        deadlockUntil =
+            0;
+
+
+        observeUntil =
+            0;
+
+
+        vectorUntil =
+            0;
+
+
+        momentUntil =
+            0;
+
+
+        evolutionUntil =
+            0;
+
+
+        predictionUntil =
+            0;
+
+
+        adaptation.aimedShotsSeen =
+            0;
+
+
+        adaptation.spreadShotsSeen =
+            0;
+
+
+        adaptation.speedBonus =
+            0;
+
+
+        turn =
+            TURN.FORECAST;
+
+
+        turnStarted =
+            now;
 
 
         updateEnemyHUD();
@@ -444,7 +782,7 @@ const Battle = (() => {
 
 
     /* =====================================
-       LOOP
+       MAIN LOOP
     ===================================== */
 
     function loop(now) {
@@ -453,10 +791,17 @@ const Battle = (() => {
             return;
         }
 
-        let dt =
-            (now - lastFrame) / 1000;
 
-        lastFrame = now;
+        let dt =
+            (
+                now -
+                lastFrame
+            ) / 1000;
+
+
+        lastFrame =
+            now;
+
 
         dt =
             Math.min(
@@ -464,14 +809,21 @@ const Battle = (() => {
                 0.04
             );
 
+
         update(
             dt,
             now
         );
 
-        draw(now);
 
-        requestAnimationFrame(loop);
+        draw(
+            now
+        );
+
+
+        requestAnimationFrame(
+            loop
+        );
     }
 
 
@@ -480,34 +832,45 @@ const Battle = (() => {
         now
     ) {
 
-        updateTurn(now);
+        updateTurn(
+            now
+        );
+
 
         updateForecast(
             dt,
             now
         );
 
+
         updateEnemy(
             dt,
             now
         );
+
 
         updateForecastProjectiles(
             dt,
             now
         );
 
+
         updateEnemyProjectiles(
             dt,
             now
         );
+
 
         updateHazards(
             dt,
             now
         );
 
-        updateSpecialAttacks(now);
+
+        updateSpecialAttacks(
+            now
+        );
+
 
         updateEffects(
             dt,
@@ -523,33 +886,42 @@ const Battle = (() => {
     function updateTurn(now) {
 
         if (
-            turn === TURN.ENDED
+            turn ===
+            TURN.ENDED
         ) {
             return;
         }
 
 
         if (
-            turn === TURN.TRANSITION
+            turn ===
+            TURN.TRANSITION
         ) {
 
             if (
-                now >= transitionUntil
+                now >=
+                transitionUntil
             ) {
+
                 startForecastTurn();
             }
+
 
             return;
         }
 
 
         const elapsed =
-            now - turnStarted;
+            now -
+            turnStarted;
 
 
         if (
-            turn === TURN.FORECAST &&
-            elapsed >= FORECAST_TURN_LENGTH
+            turn ===
+                TURN.FORECAST &&
+
+            elapsed >=
+                FORECAST_TURN_LENGTH
         ) {
 
             startEnemyTurn();
@@ -557,8 +929,11 @@ const Battle = (() => {
 
 
         else if (
-            turn === TURN.ENEMY &&
-            elapsed >= ENEMY_TURN_LENGTH
+            turn ===
+                TURN.ENEMY &&
+
+            elapsed >=
+                ENEMY_TURN_LENGTH
         ) {
 
             startForecastTurn();
@@ -569,19 +944,44 @@ const Battle = (() => {
     function startForecastTurn() {
 
         if (
-            turn === TURN.ENDED
+            turn ===
+            TURN.ENDED
         ) {
             return;
         }
 
-        turn = TURN.FORECAST;
+
+        turn =
+            TURN.FORECAST;
+
 
         turnStarted =
             performance.now();
 
-        enemyProjectiles = [];
+
+        enemyProjectiles =
+            [];
+
+
+        /*
+            Return Forecast to his normal
+            boss stance after dodging.
+        */
+
+        const home =
+            getForecastHomePosition();
+
+
+        forecast.x =
+            home.x;
+
+
+        forecast.y =
+            home.y;
+
 
         updateTurnHUD();
+
 
         message(
             "Your turn. Choose a possibility."
@@ -592,25 +992,36 @@ const Battle = (() => {
     function startEnemyTurn() {
 
         if (
-            turn === TURN.ENDED
+            turn ===
+            TURN.ENDED
         ) {
             return;
         }
 
-        turn = TURN.ENEMY;
+
+        turn =
+            TURN.ENEMY;
+
 
         turnStarted =
             performance.now();
 
-        forecastProjectiles = [];
 
-        hazards = [];
+        forecastProjectiles =
+            [];
+
+
+        hazards =
+            [];
+
 
         updateTurnHUD();
+
 
         message(
             "The protagonist attacks. Forecast takes over."
         );
+
 
         beginEnemyPattern();
     }
@@ -618,22 +1029,33 @@ const Battle = (() => {
 
     function startTransition() {
 
-        turn = TURN.TRANSITION;
+        turn =
+            TURN.TRANSITION;
+
 
         transitionUntil =
-            performance.now() + 1200;
+            performance.now() +
+            1200;
 
-        enemyProjectiles = [];
 
-        forecastProjectiles = [];
+        enemyProjectiles =
+            [];
 
-        hazards = [];
+
+        forecastProjectiles =
+            [];
+
+
+        hazards =
+            [];
+
 
         updateTurnHUD();
     }
 
 
     function getTurn() {
+
         return turn;
     }
 
@@ -641,32 +1063,30 @@ const Battle = (() => {
     function isForecastTurn() {
 
         return (
-            turn === TURN.FORECAST
+            turn ===
+            TURN.FORECAST
         );
     }
 
 
     /* =====================================
-       OLD MOVEMENT COMPATIBILITY
-
-       V0.4 has NO manual movement.
+       NO MANUAL MOVEMENT
     ===================================== */
 
     function setMovement() {
 
         /*
-            game.js V0.3 can still call this.
+            Compatibility only.
 
-            We intentionally do nothing.
+            Forecast is the boss.
 
-            This lets us replace game.js later
-            without breaking the game now.
+            There is no WASD or D-pad movement.
         */
     }
 
 
     /* =====================================
-       STAMINA / AUTO-DODGE
+       FORECAST UPDATE
     ===================================== */
 
     function updateForecast(
@@ -675,35 +1095,47 @@ const Battle = (() => {
     ) {
 
         const regenMultiplier =
-            turn === TURN.FORECAST
+
+            turn ===
+            TURN.FORECAST
+
                 ? 1.35
+
                 : 1;
 
 
         stamina =
             Math.min(
+
                 STAMINA_MAX,
 
                 stamina +
+
                 STAMINA_REGEN_PER_SECOND *
+
                 regenMultiplier *
+
                 dt
             );
 
 
         if (
-            now - lastDodgeAt >
+            now -
+            lastDodgeAt >
             900
         ) {
 
-            dodgeChain = 0;
+            dodgeChain =
+                0;
         }
 
 
         dodgeAfterimages =
             dodgeAfterimages.filter(
                 image =>
-                    now < image.until
+                    image &&
+                    now <
+                    image.until
             );
 
 
@@ -711,61 +1143,68 @@ const Battle = (() => {
     }
 
 
+    /* =====================================
+       DODGE COST
+    ===================================== */
+
     function getDodgeCost(now) {
 
         let cost =
+
             BASE_DODGE_COST +
+
             Math.min(
                 dodgeChain * 3,
                 15
             );
 
 
-        /*
-            Evolution lowers stamina cost.
-        */
-
         if (
-            now < evolutionUntil
+            now <
+            evolutionUntil
         ) {
 
-            cost *= 0.68;
+            cost *=
+                0.68;
         }
 
 
-        /*
-            Forecast gradually adapts after
-            observing enough aimed attacks.
-        */
-
         if (
-            adaptation.aimedShotsSeen >= 8
+            adaptation
+                .aimedShotsSeen >=
+            8
         ) {
 
-            cost *= 0.9;
+            cost *=
+                0.9;
         }
 
 
-        /*
-            Prediction / Observe give Forecast
-            more time to react.
-        */
-
         if (
-            now < predictionUntil ||
-            now < observeUntil
+            now <
+                predictionUntil ||
+
+            now <
+                observeUntil
         ) {
 
-            cost *= 0.85;
+            cost *=
+                0.85;
         }
 
 
         return Math.max(
             5,
-            Math.round(cost)
+            Math.round(
+                cost
+            )
         );
     }
 
+
+    /* =====================================
+       AUTO-DODGE
+    ===================================== */
 
     function tryAutoDodge(
         projectile,
@@ -773,8 +1212,10 @@ const Battle = (() => {
     ) {
 
         if (
-            turn !== TURN.ENEMY
+            turn !==
+            TURN.ENEMY
         ) {
+
             return false;
         }
 
@@ -783,30 +1224,33 @@ const Battle = (() => {
             now <
             forecast.invulnerableUntil
         ) {
+
             return true;
         }
 
 
         if (
-            ForecastPhases.isLocked()
+            ForecastPhases
+                .isLocked()
         ) {
+
             return true;
         }
 
 
         const cost =
-            getDodgeCost(now);
+            getDodgeCost(
+                now
+            );
 
 
         /*
-            Not enough stamina.
-
-            The dodge fails and the normal
-            confirmed-hit system takes over.
+            No stamina = attack lands.
         */
 
         if (
-            stamina < cost
+            stamina <
+            cost
         ) {
 
             stamina =
@@ -815,9 +1259,11 @@ const Battle = (() => {
                     stamina
                 );
 
+
             updateStaminaHUD(
                 "EXHAUSTED — HIT INCOMING"
             );
+
 
             return false;
         }
@@ -826,14 +1272,10 @@ const Battle = (() => {
         const oldX =
             forecast.x;
 
+
         const oldY =
             forecast.y;
 
-
-        /*
-            Calculate a perpendicular direction
-            to the incoming projectile.
-        */
 
         const projectileSpeed =
             Math.hypot(
@@ -842,146 +1284,117 @@ const Battle = (() => {
             ) || 1;
 
 
-        const perpX =
+        /*
+            Perpendicular dodge.
+        */
+
+        const perpendicularX =
             -projectile.vy /
             projectileSpeed;
 
-        const perpY =
-            projectile.vx /
-            projectileSpeed;
+
+        /*
+            Forecast mainly dodges sideways,
+            like a boss avoiding an incoming
+            protagonist attack.
+        */
+
+        let direction =
+
+            perpendicularX >= 0
+
+                ? 1
+
+                : -1;
 
 
-        const distance =
+        /*
+            Alternate directions during chains
+            so he doesn't repeatedly snap into
+            one edge of the screen.
+        */
+
+        if (
+            dodgeChain % 2 ===
+            1
+        ) {
+
+            direction *=
+                -1;
+        }
+
+
+        const home =
+            getForecastHomePosition();
+
+
+        let dodgeDistance =
+
             DODGE_DISTANCE +
+
             Math.min(
                 ForecastPhases
-                    .getPhaseIndex() * 3,
-                24
-            );
+                    .getPhaseIndex() *
+                    4,
 
-
-        /*
-            Candidate A
-        */
-
-        const ax =
-            clamp(
-                oldX +
-                perpX *
-                distance,
-
-                arena.left +
-                forecast.radius,
-
-                arena.right -
-                forecast.radius
-            );
-
-
-        const ay =
-            clamp(
-                oldY +
-                perpY *
-                distance,
-
-                arena.top +
-                forecast.radius,
-
-                arena.bottom -
-                forecast.radius
-            );
-
-
-        /*
-            Candidate B
-        */
-
-        const bx =
-            clamp(
-                oldX -
-                perpX *
-                distance,
-
-                arena.left +
-                forecast.radius,
-
-                arena.right -
-                forecast.radius
-            );
-
-
-        const by =
-            clamp(
-                oldY -
-                perpY *
-                distance,
-
-                arena.top +
-                forecast.radius,
-
-                arena.bottom -
-                forecast.radius
-            );
-
-
-        /*
-            Choose the side with more room.
-        */
-
-        const aClearance =
-            Math.min(
-                ax - arena.left,
-                arena.right - ax,
-                ay - arena.top,
-                arena.bottom - ay
-            );
-
-
-        const bClearance =
-            Math.min(
-                bx - arena.left,
-                arena.right - bx,
-                by - arena.top,
-                arena.bottom - by
+                30
             );
 
 
         if (
-            aClearance >=
-            bClearance
+            now <
+            evolutionUntil
         ) {
 
-            forecast.x = ax;
-            forecast.y = ay;
+            dodgeDistance +=
+                12;
         }
 
-        else {
 
-            forecast.x = bx;
-            forecast.y = by;
-        }
+        forecast.x =
+            clamp(
+
+                oldX +
+                dodgeDistance *
+                direction,
+
+                arena.left +
+                60,
+
+                arena.right -
+                60
+            );
+
+
+        /*
+            Keep Forecast in his boss row.
+        */
+
+        forecast.y =
+            home.y;
 
 
         stamina =
             Math.max(
                 0,
-                stamina - cost
+                stamina -
+                cost
             );
 
 
         dodgeChain++;
 
-        lastDodgeAt = now;
+
+        lastDodgeAt =
+            now;
 
 
         forecast.invulnerableUntil =
+
             now +
+
             DODGE_INVULNERABILITY;
 
-
-        /*
-            Red/black afterimage.
-        */
 
         dodgeAfterimages.push({
 
@@ -989,20 +1402,28 @@ const Battle = (() => {
 
             y: oldY,
 
+            phase:
+                ForecastPhases
+                    .getPhase(),
+
             until:
-                now + 240
+                now + 260
         });
 
 
         effects.push({
 
-            type: "dodge",
+            type:
+                "dodge",
 
-            x: oldX,
+            x:
+                oldX,
 
-            y: oldY,
+            y:
+                oldY,
 
-            life: 0.24
+            life:
+                0.26
         });
 
 
@@ -1023,20 +1444,33 @@ const Battle = (() => {
 
         enemy.targetX =
             random(
-                arena.left + 60,
-                arena.right - 40
+                arena.left + 80,
+                arena.right - 80
             );
+
+
+        /*
+            Keep the protagonist in the
+            lower portion of the arena.
+
+            Forecast owns the upper boss row.
+        */
+
+        const playableTop =
+            arena.top + 145;
 
 
         enemy.targetY =
             random(
-                arena.top + 35,
+                playableTop,
                 arena.bottom - 35
             );
 
 
         enemy.nextTargetAt =
+
             performance.now() +
+
             random(
                 550,
                 1150
@@ -1066,30 +1500,37 @@ const Battle = (() => {
         }
 
 
-        let scale = 1;
+        let scale =
+            1;
 
 
         if (
-            now < deadlockUntil
+            now <
+            deadlockUntil
         ) {
 
-            scale *= 0.25;
+            scale *=
+                0.25;
         }
 
 
         if (
-            now < momentUntil
+            now <
+            momentUntil
         ) {
 
-            scale *= 0.32;
+            scale *=
+                0.32;
         }
 
 
         if (
-            now < domainUntil
+            now <
+            domainUntil
         ) {
 
-            scale *= 0.68;
+            scale *=
+                0.68;
         }
 
 
@@ -1111,29 +1552,38 @@ const Battle = (() => {
 
 
         if (
-            distance > 2
+            distance >
+            2
         ) {
 
             enemy.x +=
+
                 dx /
                 distance *
+
                 enemy.speed *
+
                 scale *
+
                 dt;
 
 
             enemy.y +=
+
                 dy /
                 distance *
+
                 enemy.speed *
+
                 scale *
+
                 dt;
         }
     }
 
 
     /* =====================================
-       PROTAGONIST ATTACK
+       PROTAGONIST ATTACK PATTERN
     ===================================== */
 
     function beginEnemyPattern() {
@@ -1166,6 +1616,7 @@ const Battle = (() => {
                         return;
                     }
 
+
                     spawnEnemyShot();
                 },
 
@@ -1181,24 +1632,22 @@ const Battle = (() => {
         let targetX =
             forecast.x;
 
+
         let targetY =
             forecast.y;
 
-
-        /*
-            PARADOX can redirect attacks
-            toward Forecast's decoy.
-        */
 
         if (
             decoy &&
             performance.now() <
                 decoy.until &&
-            Math.random() < 0.7
+            Math.random() <
+                0.7
         ) {
 
             targetX =
                 decoy.x;
+
 
             targetY =
                 decoy.y;
@@ -1223,7 +1672,9 @@ const Battle = (() => {
 
 
         const speed =
+
             250 +
+
             ForecastPhases
                 .getPhaseIndex() *
             7;
@@ -1231,9 +1682,11 @@ const Battle = (() => {
 
         enemyProjectiles.push({
 
-            x: enemy.x,
+            x:
+                enemy.x,
 
-            y: enemy.y,
+            y:
+                enemy.y,
 
             vx:
                 dx /
@@ -1245,11 +1698,14 @@ const Battle = (() => {
                 length *
                 speed,
 
-            radius: 7,
+            radius:
+                7,
 
-            life: 4,
+            life:
+                4,
 
-            type: "aimed"
+            type:
+                "aimed"
         });
 
 
@@ -1258,40 +1714,46 @@ const Battle = (() => {
     }
 
 
+    /* =====================================
+       ENEMY PROJECTILES
+    ===================================== */
+
     function updateEnemyProjectiles(
         dt,
         now
     ) {
 
-        let timeScale = 1;
+        let timeScale =
+            1;
 
 
         if (
-            now < momentUntil
+            now <
+            momentUntil
         ) {
 
-            timeScale = 0.32;
+            timeScale =
+                0.32;
         }
 
 
         for (
             let i =
-                enemyProjectiles.length - 1;
+                enemyProjectiles.length -
+                1;
 
             i >= 0;
 
             i--
         ) {
 
-            const p =
-                enemyProjectiles[i];
+            const projectile =
+                enemyProjectiles[
+                    i
+                ];
 
 
-            /*
-                Defensive guard.
-            */
-
-            if (!p) {
+            if (!projectile) {
 
                 enemyProjectiles.splice(
                     i,
@@ -1302,26 +1764,55 @@ const Battle = (() => {
             }
 
 
-            p.x +=
-                p.vx *
+            projectile.x +=
+
+                projectile.vx *
+
                 dt *
+
                 timeScale;
 
 
-            p.y +=
-                p.vy *
+            projectile.y +=
+
+                projectile.vy *
+
                 dt *
+
                 timeScale;
 
 
-            p.life -=
+            projectile.life -=
+
                 dt *
+
                 timeScale;
 
+
+            /*
+                We don't use the old arena-only
+                projectile deletion here because
+                Forecast occupies the upper boss
+                row.
+
+                Only delete after it leaves the
+                actual screen.
+            */
 
             if (
-                p.life <= 0 ||
-                outsideArena(p)
+                projectile.life <= 0 ||
+
+                projectile.x <
+                    -100 ||
+
+                projectile.x >
+                    width + 100 ||
+
+                projectile.y <
+                    -100 ||
+
+                projectile.y >
+                    height + 100
             ) {
 
                 enemyProjectiles.splice(
@@ -1336,9 +1827,9 @@ const Battle = (() => {
             if (
                 circlesTouch(
 
-                    p.x,
-                    p.y,
-                    p.radius,
+                    projectile.x,
+                    projectile.y,
+                    projectile.radius,
 
                     forecast.x,
                     forecast.y,
@@ -1346,19 +1837,9 @@ const Battle = (() => {
                 )
             ) {
 
-                /*
-                    V0.4:
-
-                    Collision no longer immediately
-                    damages Forecast.
-
-                    First, Forecast attempts to
-                    auto-dodge.
-                */
-
                 const dodged =
                     tryAutoDodge(
-                        p,
+                        projectile,
                         now
                     );
 
@@ -1369,15 +1850,16 @@ const Battle = (() => {
                 );
 
 
-                if (!dodged) {
+                if (
+                    !dodged
+                ) {
 
-                    hitForecast(now);
+                    hitForecast(
+                        now
+                    );
 
                     return;
                 }
-
-
-                continue;
             }
         }
     }
@@ -1389,14 +1871,9 @@ const Battle = (() => {
 
     function hitForecast(now) {
 
-        /*
-            Only a real failed dodge during
-            the protagonist's turn can
-            advance Forecast's phase.
-        */
-
         if (
-            turn !== TURN.ENEMY
+            turn !==
+            TURN.ENEMY
         ) {
             return;
         }
@@ -1411,14 +1888,18 @@ const Battle = (() => {
 
 
         if (
-            ForecastPhases.isLocked()
+            ForecastPhases
+                .isLocked()
         ) {
             return;
         }
 
 
         forecast.invulnerableUntil =
-            now + 1300;
+
+            now +
+
+            1300;
 
 
         const result =
@@ -1442,15 +1923,10 @@ const Battle = (() => {
 
             startTransition();
 
+
             return;
         }
 
-
-        /*
-            Phase 5 stays Phase 5.
-            We intentionally do NOT invent
-            Phase 6 or a defeat condition.
-        */
 
         if (
             result.reason ===
@@ -1461,7 +1937,9 @@ const Battle = (() => {
                 "Phase 5 holds."
             );
 
-            enemyProjectiles = [];
+
+            enemyProjectiles =
+                [];
         }
     }
 
@@ -1477,7 +1955,7 @@ const Battle = (() => {
         ) {
 
             message(
-                "You can't attack during the protagonist's turn."
+                "Forecast is auto-dodging."
             );
 
             return;
@@ -1543,7 +2021,9 @@ const Battle = (() => {
             case "dmr":
 
                 predictionUntil =
+
                     performance.now() +
+
                     250;
 
 
@@ -1646,7 +2126,8 @@ const Battle = (() => {
             damage:
                 config.damage,
 
-            life: 2.5,
+            life:
+                2.5,
 
             type:
                 config.type
@@ -1706,8 +2187,11 @@ const Battle = (() => {
         ) {
 
             const angle =
+
                 base +
-                i * 0.09;
+
+                i *
+                0.09;
 
 
             forecastProjectiles.push({
@@ -1721,18 +2205,23 @@ const Battle = (() => {
                 vx:
                     Math.cos(
                         angle
-                    ) * 430,
+                    ) *
+                    430,
 
                 vy:
                     Math.sin(
                         angle
-                    ) * 430,
+                    ) *
+                    430,
 
-                radius: 4,
+                radius:
+                    4,
 
-                damage: 5,
+                damage:
+                    5,
 
-                life: 0.9,
+                life:
+                    0.9,
 
                 type:
                     "pellet"
@@ -1741,6 +2230,10 @@ const Battle = (() => {
     }
 
 
+    /* =====================================
+       FORECAST PROJECTILES
+    ===================================== */
+
     function updateForecastProjectiles(
         dt,
         now
@@ -1748,26 +2241,25 @@ const Battle = (() => {
 
         for (
             let i =
-                forecastProjectiles.length - 1;
+                forecastProjectiles.length -
+                1;
 
             i >= 0;
 
             i--
         ) {
 
-            const p =
-                forecastProjectiles[i];
+            const projectile =
+                forecastProjectiles[
+                    i
+                ];
 
 
             /*
-                IMPORTANT V0.4 FIX:
-
-                Never attempt p.x / p.vx if a
-                delayed attack changed the array
-                between frames.
+                Fix for the old undefined.x crash.
             */
 
-            if (!p) {
+            if (!projectile) {
 
                 forecastProjectiles.splice(
                     i,
@@ -1778,11 +2270,6 @@ const Battle = (() => {
             }
 
 
-            /*
-                VECTOR bends projectiles
-                toward the protagonist.
-            */
-
             if (
                 now <
                 vectorUntil
@@ -1790,12 +2277,12 @@ const Battle = (() => {
 
                 const dx =
                     enemy.x -
-                    p.x;
+                    projectile.x;
 
 
                 const dy =
                     enemy.y -
-                    p.y;
+                    projectile.y;
 
 
                 const length =
@@ -1807,13 +2294,15 @@ const Battle = (() => {
 
                 const speed =
                     Math.hypot(
-                        p.vx,
-                        p.vy
+                        projectile.vx,
+                        projectile.vy
                     );
 
 
-                p.vx =
-                    p.vx * 0.88 +
+                projectile.vx =
+
+                    projectile.vx *
+                    0.88 +
 
                     dx /
                     length *
@@ -1821,8 +2310,10 @@ const Battle = (() => {
                     0.12;
 
 
-                p.vy =
-                    p.vy * 0.88 +
+                projectile.vy =
+
+                    projectile.vy *
+                    0.88 +
 
                     dy /
                     length *
@@ -1831,23 +2322,37 @@ const Battle = (() => {
             }
 
 
-            p.x +=
-                p.vx *
+            projectile.x +=
+
+                projectile.vx *
                 dt;
 
 
-            p.y +=
-                p.vy *
+            projectile.y +=
+
+                projectile.vy *
                 dt;
 
 
-            p.life -=
+            projectile.life -=
                 dt;
 
 
             if (
-                p.life <= 0 ||
-                outsideArena(p)
+                projectile.life <=
+                0 ||
+
+                projectile.x <
+                    -100 ||
+
+                projectile.x >
+                    width + 100 ||
+
+                projectile.y <
+                    -100 ||
+
+                projectile.y >
+                    height + 100
             ) {
 
                 forecastProjectiles.splice(
@@ -1862,9 +2367,9 @@ const Battle = (() => {
             if (
                 circlesTouch(
 
-                    p.x,
-                    p.y,
-                    p.radius,
+                    projectile.x,
+                    projectile.y,
+                    projectile.radius,
 
                     enemy.x,
                     enemy.y,
@@ -1873,7 +2378,7 @@ const Battle = (() => {
             ) {
 
                 damageEnemy(
-                    p.damage
+                    projectile.damage
                 );
 
 
@@ -1904,11 +2409,14 @@ const Battle = (() => {
             until:
                 now + 520,
 
-            reach: 105,
+            reach:
+                105,
 
-            damage: 28,
+            damage:
+                28,
 
-            hit: false
+            hit:
+                false
         };
     }
 
@@ -1939,7 +2447,8 @@ const Battle = (() => {
 
             damage,
 
-            hit: false
+            hit:
+                false
         };
     }
 
@@ -1955,7 +2464,7 @@ const Battle = (() => {
         ) {
 
             message(
-                "Techniques are unavailable while Forecast is dodging."
+                "Forecast is auto-dodging."
             );
 
             return;
@@ -2066,7 +2575,8 @@ const Battle = (() => {
 
             hazards.push({
 
-                type: "bone",
+                type:
+                    "bone",
 
                 x:
                     startX +
@@ -2075,17 +2585,21 @@ const Battle = (() => {
                 y:
                     enemy.targetY,
 
-                radius: 12,
+                radius:
+                    12,
 
-                damage: 7,
+                damage:
+                    7,
 
                 activateAt:
                     performance.now() +
                     550,
 
-                life: 1.5,
+                life:
+                    1.5,
 
-                hit: false
+                hit:
+                    false
             });
         }
     }
@@ -2093,7 +2607,8 @@ const Battle = (() => {
 
     function createIllusions() {
 
-        illusions = [];
+        illusions =
+            [];
 
 
         for (
@@ -2106,14 +2621,14 @@ const Battle = (() => {
 
                 x:
                     random(
-                        arena.left,
-                        arena.right
+                        arena.left + 50,
+                        arena.right - 50
                     ),
 
                 y:
                     random(
-                        arena.top,
-                        arena.bottom
+                        arena.top + 150,
+                        arena.bottom - 40
                     ),
 
                 until:
@@ -2151,17 +2666,21 @@ const Battle = (() => {
                         75
                     ),
 
-                radius: 24,
+                radius:
+                    24,
 
-                damage: 9,
+                damage:
+                    9,
 
                 activateAt:
                     performance.now() +
                     600,
 
-                life: 2.4,
+                life:
+                    2.4,
 
-                hit: false
+                hit:
+                    false
             });
         }
     }
@@ -2171,7 +2690,8 @@ const Battle = (() => {
 
         hazards.push({
 
-            type: "trap",
+            type:
+                "trap",
 
             x:
                 enemy.targetX,
@@ -2179,17 +2699,21 @@ const Battle = (() => {
             y:
                 enemy.targetY,
 
-            radius: 38,
+            radius:
+                38,
 
-            damage: 17,
+            damage:
+                17,
 
             activateAt:
                 performance.now() +
                 800,
 
-            life: 1.8,
+            life:
+                1.8,
 
-            hit: false
+            hit:
+                false
         });
     }
 
@@ -2219,14 +2743,18 @@ const Battle = (() => {
                     ) {
 
                         const angle =
+
                             i /
                             8 *
+
                             Math.PI *
                             2;
 
 
                         const x =
+
                             enemy.x +
+
                             Math.cos(
                                 angle
                             ) *
@@ -2234,7 +2762,9 @@ const Battle = (() => {
 
 
                         const y =
+
                             enemy.y +
+
                             Math.sin(
                                 angle
                             ) *
@@ -2274,11 +2804,14 @@ const Battle = (() => {
                                 length *
                                 300,
 
-                            radius: 5,
+                            radius:
+                                5,
 
-                            damage: 7,
+                            damage:
+                                7,
 
-                            life: 1.3,
+                            life:
+                                1.3,
 
                             type:
                                 "crossfire"
@@ -2306,7 +2839,8 @@ const Battle = (() => {
             y:
                 enemy.targetY,
 
-            life: 1.2
+            life:
+                1.2
         });
 
 
@@ -2322,7 +2856,8 @@ const Battle = (() => {
 
                 hazards.push({
 
-                    type: "trap",
+                    type:
+                        "trap",
 
                     x:
                         enemy.x,
@@ -2330,17 +2865,21 @@ const Battle = (() => {
                     y:
                         enemy.y,
 
-                    radius: 42,
+                    radius:
+                        42,
 
-                    damage: 21,
+                    damage:
+                        21,
 
                     activateAt:
                         performance.now() +
                         180,
 
-                    life: 1.2,
+                    life:
+                        1.2,
 
-                    hit: false
+                    hit:
+                        false
                 });
             },
 
@@ -2368,8 +2907,11 @@ const Battle = (() => {
 
 
                     const amount =
+
                         0.35 +
-                        i * 0.1;
+
+                        i *
+                        0.1;
 
 
                     hazards.push({
@@ -2397,15 +2939,18 @@ const Battle = (() => {
                             30 +
                             i * 5,
 
-                        damage: 11,
+                        damage:
+                            11,
 
                         activateAt:
                             performance.now() +
                             450,
 
-                        life: 1.4,
+                        life:
+                            1.4,
 
-                        hit: false
+                        hit:
+                            false
                     });
                 },
 
@@ -2427,18 +2972,21 @@ const Battle = (() => {
 
         for (
             let i =
-                hazards.length - 1;
+                hazards.length -
+                1;
 
             i >= 0;
 
             i--
         ) {
 
-            const h =
-                hazards[i];
+            const hazard =
+                hazards[
+                    i
+                ];
 
 
-            if (!h) {
+            if (!hazard) {
 
                 hazards.splice(
                     i,
@@ -2449,12 +2997,13 @@ const Battle = (() => {
             }
 
 
-            h.life -=
+            hazard.life -=
                 dt;
 
 
             if (
-                h.life <= 0
+                hazard.life <=
+                0
             ) {
 
                 hazards.splice(
@@ -2468,9 +3017,11 @@ const Battle = (() => {
 
             if (
                 now <
-                    h.activateAt ||
-                h.hit
+                    hazard.activateAt ||
+
+                hazard.hit
             ) {
+
                 continue;
             }
 
@@ -2478,9 +3029,9 @@ const Battle = (() => {
             if (
                 circlesTouch(
 
-                    h.x,
-                    h.y,
-                    h.radius,
+                    hazard.x,
+                    hazard.y,
+                    hazard.radius,
 
                     enemy.x,
                     enemy.y,
@@ -2488,10 +3039,12 @@ const Battle = (() => {
                 )
             ) {
 
-                h.hit = true;
+                hazard.hit =
+                    true;
+
 
                 damageEnemy(
-                    h.damage
+                    hazard.damage
                 );
             }
         }
@@ -2504,6 +3057,11 @@ const Battle = (() => {
 
     function useEye(data) {
 
+        if (!data) {
+            return;
+        }
+
+
         const now =
             performance.now();
 
@@ -2515,7 +3073,9 @@ const Battle = (() => {
             case "freeze":
 
                 enemy.frozenUntil =
+
                     now +
+
                     data.duration;
 
                 break;
@@ -2524,7 +3084,9 @@ const Battle = (() => {
             case "domain":
 
                 domainUntil =
+
                     now +
+
                     data.duration;
 
                 break;
@@ -2533,7 +3095,9 @@ const Battle = (() => {
             case "heroism":
 
                 heroismUntil =
+
                     now +
+
                     data.duration;
 
                 break;
@@ -2542,18 +3106,23 @@ const Battle = (() => {
             case "evolution":
 
                 evolutionUntil =
+
                     now +
+
                     data.duration;
 
 
                 adaptation.speedBonus =
+
                     Math.min(
+
                         45,
 
                         adaptation
                             .aimedShotsSeen *
                         2
                     );
+
 
                 message(
                     "EVOLUTION — Forecast adapts."
@@ -2565,7 +3134,9 @@ const Battle = (() => {
             case "deadlock":
 
                 deadlockUntil =
+
                     now +
+
                     data.duration;
 
                 break;
@@ -2573,12 +3144,14 @@ const Battle = (() => {
 
             case "null":
 
-                enemyProjectiles = [];
+                enemyProjectiles =
+                    [];
 
 
                 effects.push({
 
-                    type: "null",
+                    type:
+                        "null",
 
                     x:
                         forecast.x,
@@ -2586,7 +3159,8 @@ const Battle = (() => {
                     y:
                         forecast.y,
 
-                    life: 0.6
+                    life:
+                        0.6
                 });
 
                 break;
@@ -2598,30 +3172,24 @@ const Battle = (() => {
 
                     x:
                         clamp(
+
                             forecast.x +
-                            90,
+                            110,
 
                             arena.left +
-                            20,
+                            60,
 
                             arena.right -
-                            20
+                            60
                         ),
 
                     y:
-                        clamp(
-                            forecast.y -
-                            55,
-
-                            arena.top +
-                            20,
-
-                            arena.bottom -
-                            20
-                        ),
+                        forecast.y,
 
                     until:
+
                         now +
+
                         data.duration
                 };
 
@@ -2631,7 +3199,9 @@ const Battle = (() => {
             case "observe":
 
                 observeUntil =
+
                     now +
+
                     data.duration;
 
                 break;
@@ -2640,7 +3210,9 @@ const Battle = (() => {
             case "vector":
 
                 vectorUntil =
+
                     now +
+
                     data.duration;
 
                 break;
@@ -2649,14 +3221,15 @@ const Battle = (() => {
             case "moment":
 
                 momentUntil =
+
                     now +
+
                     data.duration;
 
                 break;
         }
-    }
-       /* =====================================
-       SPECIAL ATTACK COLLISIONS
+    }    /* =====================================
+       SPECIAL ATTACKS
     ===================================== */
 
     function updateSpecialAttacks(now) {
@@ -2664,10 +3237,12 @@ const Battle = (() => {
         if (scythe) {
 
             if (
-                now >= scythe.until
+                now >=
+                scythe.until
             ) {
 
-                scythe = null;
+                scythe =
+                    null;
             }
 
             else if (
@@ -2676,6 +3251,7 @@ const Battle = (() => {
 
                 const distance =
                     Math.hypot(
+
                         enemy.x -
                         forecast.x,
 
@@ -2689,7 +3265,9 @@ const Battle = (() => {
                     scythe.reach
                 ) {
 
-                    scythe.hit = true;
+                    scythe.hit =
+                        true;
+
 
                     damageEnemy(
                         scythe.damage
@@ -2702,19 +3280,24 @@ const Battle = (() => {
         if (beam) {
 
             if (
-                now >= beam.until
+                now >=
+                beam.until
             ) {
 
-                beam = null;
+                beam =
+                    null;
             }
 
             else if (
                 now >=
                     beam.chargeUntil &&
+
                 !beam.hit
             ) {
 
-                beam.hit = true;
+                beam.hit =
+                    true;
+
 
                 damageEnemy(
                     beam.damage
@@ -2731,7 +3314,8 @@ const Battle = (() => {
     function damageEnemy(amount) {
 
         if (
-            turn !== TURN.FORECAST
+            turn !==
+            TURN.FORECAST
         ) {
             return;
         }
@@ -2742,13 +3326,16 @@ const Battle = (() => {
             heroismUntil
         ) {
 
-            amount *= 1.3;
+            amount *=
+                1.3;
         }
 
 
         enemy.hp =
             Math.max(
+
                 0,
+
                 enemy.hp -
                 amount
             );
@@ -2759,27 +3346,40 @@ const Battle = (() => {
 
         effects.push({
 
-            type: "hit",
+            type:
+                "hit",
 
-            x: enemy.x,
+            x:
+                enemy.x,
 
-            y: enemy.y,
+            y:
+                enemy.y,
 
-            life: 0.25
+            life:
+                0.25
         });
 
 
         if (
-            enemy.hp <= 0
+            enemy.hp <=
+            0
         ) {
 
-            turn = TURN.ENDED;
+            turn =
+                TURN.ENDED;
 
-            forecastProjectiles = [];
 
-            enemyProjectiles = [];
+            forecastProjectiles =
+                [];
 
-            hazards = [];
+
+            enemyProjectiles =
+                [];
+
+
+            hazards =
+                [];
+
 
             updateTurnHUD();
 
@@ -2797,20 +3397,31 @@ const Battle = (() => {
 
     function onPhaseChanged(data) {
 
-        /*
-            Clear the protagonist's current
-            attack immediately.
+        enemyProjectiles =
+            [];
 
-            This prevents one attack from
-            counting as multiple phase hits.
+
+        /*
+            Return Forecast to his center
+            boss stance for the transformation.
         */
 
-        enemyProjectiles = [];
+        const home =
+            getForecastHomePosition();
+
+
+        forecast.x =
+            home.x;
+
+
+        forecast.y =
+            home.y;
 
 
         effects.push({
 
-            type: "phase",
+            type:
+                "phase",
 
             x:
                 forecast.x,
@@ -2818,7 +3429,8 @@ const Battle = (() => {
             y:
                 forecast.y,
 
-            life: 0.7
+            life:
+                0.8
         });
 
 
@@ -2845,7 +3457,8 @@ const Battle = (() => {
 
         for (
             let i =
-                effects.length - 1;
+                effects.length -
+                1;
 
             i >= 0;
 
@@ -2853,7 +3466,9 @@ const Battle = (() => {
         ) {
 
             const effect =
-                effects[i];
+                effects[
+                    i
+                ];
 
 
             if (!effect) {
@@ -2872,7 +3487,8 @@ const Battle = (() => {
 
 
             if (
-                effect.life <= 0
+                effect.life <=
+                0
             ) {
 
                 effects.splice(
@@ -2887,7 +3503,8 @@ const Battle = (() => {
             illusions.filter(
                 item =>
                     item &&
-                    now < item.until
+                    now <
+                    item.until
             );
 
 
@@ -2895,16 +3512,19 @@ const Battle = (() => {
             dodgeAfterimages.filter(
                 item =>
                     item &&
-                    now < item.until
+                    now <
+                    item.until
             );
 
 
         if (
             decoy &&
-            now >= decoy.until
+            now >=
+                decoy.until
         ) {
 
-            decoy = null;
+            decoy =
+                null;
         }
     }
 
@@ -2915,9 +3535,7 @@ const Battle = (() => {
 
     function draw(now) {
 
-        if (
-            !ctx
-        ) {
+        if (!ctx) {
             return;
         }
 
@@ -2930,29 +3548,65 @@ const Battle = (() => {
         );
 
 
-        drawArena(now);
+        drawArena(
+            now
+        );
 
-        drawPrediction(now);
 
-        drawIllusions(now);
+        drawPrediction(
+            now
+        );
 
-        drawHazards(now);
+
+        drawIllusions(
+            now
+        );
+
+
+        drawHazards(
+            now
+        );
+
 
         drawForecastProjectiles();
 
-        drawEnemyProjectiles(now);
 
-        drawBeam(now);
+        drawEnemyProjectiles(
+            now
+        );
 
-        drawScythe(now);
+
+        drawBeam(
+            now
+        );
+
+
+        drawScythe(
+            now
+        );
+
 
         drawDecoy();
 
-        drawDodgeAfterimages(now);
 
-        drawForecast(now);
+        drawDodgeAfterimages(
+            now
+        );
 
-        drawEnemy(now);
+
+        /*
+            REAL FORECAST!SANS
+        */
+
+        drawForecast(
+            now
+        );
+
+
+        drawEnemy(
+            now
+        );
+
 
         drawEffects();
     }
@@ -2968,7 +3622,8 @@ const Battle = (() => {
 
 
         if (
-            now < domainUntil
+            now <
+            domainUntil
         ) {
 
             ctx.fillStyle =
@@ -2976,29 +3631,38 @@ const Battle = (() => {
 
 
             ctx.fillRect(
+
                 arena.left,
+
                 arena.top,
 
                 arena.right -
-                arena.left,
+                    arena.left,
 
                 arena.bottom -
-                arena.top
+                    arena.top
             );
         }
 
 
         ctx.strokeStyle =
-            now < domainUntil
+
+            now <
+            domainUntil
+
                 ? "#ff2424"
+
                 : "#383838";
 
 
-        ctx.lineWidth = 2;
+        ctx.lineWidth =
+            2;
 
 
         ctx.strokeRect(
+
             arena.left,
+
             arena.top,
 
             arena.right -
@@ -3014,262 +3678,255 @@ const Battle = (() => {
 
 
     /* =====================================
-       AUTO-DODGE AFTERIMAGES
-    ===================================== */
-
-    function drawDodgeAfterimages(now) {
-
-        dodgeAfterimages.forEach(
-            image => {
-
-                if (!image) {
-                    return;
-                }
-
-
-                const remaining =
-                    Math.max(
-                        0,
-
-                        (
-                            image.until -
-                            now
-                        ) / 240
-                    );
-
-
-                ctx.save();
-
-
-                ctx.globalAlpha =
-                    remaining *
-                    0.42;
-
-
-                ctx.strokeStyle =
-                    "#ff2424";
-
-
-                ctx.shadowColor =
-                    "#ff2424";
-
-
-                ctx.shadowBlur =
-                    12;
-
-
-                ctx.lineWidth =
-                    2;
-
-
-                ctx.beginPath();
-
-
-                ctx.arc(
-                    image.x,
-                    image.y,
-
-                    forecast.radius +
-                    5,
-
-                    0,
-
-                    Math.PI * 2
-                );
-
-
-                ctx.stroke();
-
-
-                /*
-                    Small black echo inside
-                    the red afterimage.
-                */
-
-                ctx.shadowBlur = 0;
-
-                ctx.strokeStyle =
-                    "#050505";
-
-                ctx.globalAlpha =
-                    remaining *
-                    0.7;
-
-
-                ctx.beginPath();
-
-
-                ctx.arc(
-                    image.x,
-                    image.y,
-
-                    forecast.radius,
-
-                    0,
-
-                    Math.PI * 2
-                );
-
-
-                ctx.stroke();
-
-
-                ctx.restore();
-            }
-        );
-    }
-
-
-    /* =====================================
-       FORECAST PLACEHOLDER SPRITE
-
-       Actual pixel sprite comes later.
+       REAL FORECAST!SANS SPRITE
     ===================================== */
 
     function drawForecast(now) {
 
-        ctx.save();
-
-
-        ctx.translate(
-            forecast.x,
-            forecast.y
-        );
-
-
         /*
-            Small red aura while Forecast
-            is in auto-dodge mode.
+            NO placeholder.
+
+            If the sheet isn't loaded yet,
+            Forecast simply waits for it.
         */
 
         if (
-            turn === TURN.ENEMY &&
-            stamina >= BASE_DODGE_COST
+            !forecastSheetReady
         ) {
+            return;
+        }
+
+
+        const phase =
+            String(
+                ForecastPhases
+                    .getPhase()
+            );
+
+
+        const sprite =
+
+            FORECAST_SPRITES[
+                phase
+            ] ||
+
+            FORECAST_SPRITES[
+                "1"
+            ];
+
+
+        /*
+            Idle breathing / cloak motion.
+
+            Only a couple pixels so he still
+            feels like he's standing there.
+        */
+
+        const idleY =
+
+            Math.sin(
+                now *
+                0.0028
+            ) *
+
+            2;
+
+
+        /*
+            Phase 5 artwork is wider than
+            the normal Forecast sprites.
+        */
+
+        let drawWidth =
+            phase === "5"
+                ? 190
+                : 112;
+
+
+        let drawHeight =
+            132;
+
+
+        /*
+            Slight size growth as Forecast
+            advances through phases.
+        */
+
+        const phaseIndex =
+            ForecastPhases
+                .getPhaseIndex();
+
+
+        if (
+            phase !==
+            "5"
+        ) {
+
+            const scale =
+
+                1 +
+
+                phaseIndex *
+                0.018;
+
+
+            drawWidth *=
+                scale;
+
+
+            drawHeight *=
+                scale;
+        }
+
+
+        const drawX =
+
+            forecast.x -
+
+            drawWidth /
+            2;
+
+
+        const drawY =
+
+            forecast.y -
+
+            drawHeight /
+            2 +
+
+            idleY;
+
+
+        ctx.save();
+
+
+        /*
+            CRITICAL for pixel art.
+        */
+
+        ctx.imageSmoothingEnabled =
+            false;
+
+
+        /*
+            Phase aura.
+        */
+
+        if (
+            phaseIndex >=
+            1
+        ) {
+
+            const auraStrength =
+
+                Math.min(
+
+                    0.08 +
+
+                    phaseIndex *
+                    0.025,
+
+                    0.27
+                );
+
 
             ctx.save();
 
-            ctx.globalAlpha =
-                0.14 +
-                Math.sin(
-                    now * 0.01
-                ) * 0.04;
 
-            ctx.strokeStyle =
+            ctx.globalAlpha =
+                auraStrength;
+
+
+            ctx.fillStyle =
                 "#ff2424";
+
 
             ctx.shadowColor =
                 "#ff2424";
 
-            ctx.shadowBlur =
-                12;
 
-            ctx.lineWidth =
-                2;
+            ctx.shadowBlur =
+
+                16 +
+
+                phaseIndex *
+                3;
+
 
             ctx.beginPath();
 
-            ctx.arc(
+
+            ctx.ellipse(
+
+                forecast.x,
+
+                forecast.y +
+                    4,
+
+                drawWidth *
+                    0.43,
+
+                drawHeight *
+                    0.47,
+
                 0,
-                3,
-                27,
+
                 0,
-                Math.PI * 2
+
+                Math.PI *
+                    2
             );
 
-            ctx.stroke();
+
+            ctx.fill();
+
 
             ctx.restore();
         }
 
 
         /*
-            Hood
+            Draw the ACTUAL character from:
+
+            Forecast!Sans Pixel Character Sheet.png
         */
 
-        ctx.fillStyle =
-            "#050505";
+        ctx.drawImage(
 
-        ctx.strokeStyle =
-            "#eeeeee";
+            forecastSheet,
 
-        ctx.lineWidth =
-            2;
+            sprite.x,
+            sprite.y,
+            sprite.width,
+            sprite.height,
 
-
-        ctx.beginPath();
-
-
-        ctx.arc(
-            0,
-            -3,
-            21,
-            Math.PI,
-            Math.PI * 2
-        );
-
-
-        ctx.lineTo(
-            18,
-            25
-        );
-
-
-        ctx.lineTo(
-            -18,
-            25
-        );
-
-
-        ctx.closePath();
-
-        ctx.fill();
-
-        ctx.stroke();
-
-
-        /*
-            Skull
-        */
-
-        ctx.fillStyle =
-            "#ededed";
-
-
-        ctx.beginPath();
-
-
-        ctx.arc(
-            0,
-            0,
-            12,
-            0,
-            Math.PI * 2
-        );
-
-
-        ctx.fill();
-
-
-        /*
-            Dark socket
-        */
-
-        ctx.fillStyle =
-            "#111111";
-
-
-        ctx.fillRect(
-            3,
-            -3,
-            5,
-            4
+            drawX,
+            drawY,
+            drawWidth,
+            drawHeight
         );
 
 
         /*
-            Forecast eye
+            Extra red eye glow.
+
+            The sprite already has the eye,
+            this just makes it pop in-game.
         */
+
+        ctx.save();
+
+
+        ctx.globalAlpha =
+
+            0.18 +
+
+            Math.sin(
+                now *
+                0.008
+            ) *
+            0.05;
+
 
         ctx.fillStyle =
             "#ff2424";
@@ -3280,57 +3937,158 @@ const Battle = (() => {
 
 
         ctx.shadowBlur =
-            now < evolutionUntil
-                ? 18
-                : 8;
+            15;
 
 
-        ctx.fillRect(
-            -8,
-            -3,
+        ctx.beginPath();
+
+
+        ctx.arc(
+
+            forecast.x +
+                drawWidth *
+                0.08,
+
+            forecast.y -
+                drawHeight *
+                0.12 +
+                idleY,
+
             5,
-            5
+
+            0,
+
+            Math.PI *
+                2
         );
 
 
-        /*
-            Tiny phase-based glitch marks.
-        */
-
-        const phaseIndex =
-            ForecastPhases
-                .getPhaseIndex();
-
-
-        if (
-            phaseIndex >= 3
-        ) {
-
-            ctx.globalAlpha =
-                0.65;
-
-            ctx.fillStyle =
-                "#ff2424";
-
-
-            ctx.fillRect(
-                -24,
-                8,
-                8,
-                2
-            );
-
-
-            ctx.fillRect(
-                17,
-                -9,
-                11,
-                2
-            );
-        }
+        ctx.fill();
 
 
         ctx.restore();
+
+
+        ctx.restore();
+    }
+
+
+    /* =====================================
+       DODGE AFTERIMAGES
+
+       These now use Forecast's actual
+       phase sprite too.
+    ===================================== */
+
+    function drawDodgeAfterimages(now) {
+
+        if (
+            !forecastSheetReady
+        ) {
+            return;
+        }
+
+
+        dodgeAfterimages.forEach(
+            image => {
+
+                if (!image) {
+                    return;
+                }
+
+
+                const remaining =
+
+                    Math.max(
+
+                        0,
+
+                        (
+                            image.until -
+                            now
+                        ) /
+                        260
+                    );
+
+
+                const sprite =
+
+                    FORECAST_SPRITES[
+                        String(
+                            image.phase
+                        )
+                    ] ||
+
+                    FORECAST_SPRITES[
+                        "1"
+                    ];
+
+
+                const phase5 =
+
+                    String(
+                        image.phase
+                    ) ===
+                    "5";
+
+
+                const drawWidth =
+
+                    phase5
+                        ? 190
+                        : 112;
+
+
+                const drawHeight =
+                    132;
+
+
+                ctx.save();
+
+
+                ctx.imageSmoothingEnabled =
+                    false;
+
+
+                ctx.globalAlpha =
+
+                    remaining *
+                    0.28;
+
+
+                ctx.shadowColor =
+                    "#ff2424";
+
+
+                ctx.shadowBlur =
+                    16;
+
+
+                ctx.drawImage(
+
+                    forecastSheet,
+
+                    sprite.x,
+                    sprite.y,
+                    sprite.width,
+                    sprite.height,
+
+                    image.x -
+                        drawWidth /
+                        2,
+
+                    image.y -
+                        drawHeight /
+                        2,
+
+                    drawWidth,
+                    drawHeight
+                );
+
+
+                ctx.restore();
+            }
+        );
     }
 
 
@@ -3361,6 +4119,14 @@ const Battle = (() => {
 
         ctx.fillStyle =
             "#ff2424";
+
+
+        ctx.shadowColor =
+            "#ff2424";
+
+
+        ctx.shadowBlur =
+            5;
 
 
         ctx.beginPath();
@@ -3400,6 +4166,7 @@ const Battle = (() => {
 
         ctx.closePath();
 
+
         ctx.fill();
 
 
@@ -3414,9 +4181,9 @@ const Battle = (() => {
     function drawForecastProjectiles() {
 
         forecastProjectiles.forEach(
-            p => {
+            projectile => {
 
-                if (!p) {
+                if (!projectile) {
                     return;
                 }
 
@@ -3425,7 +4192,7 @@ const Battle = (() => {
 
 
                 if (
-                    p.type ===
+                    projectile.type ===
                     "bone"
                 ) {
 
@@ -3434,9 +4201,15 @@ const Battle = (() => {
 
 
                     ctx.fillRect(
-                        p.x - 3,
-                        p.y - 10,
+
+                        projectile.x -
+                            3,
+
+                        projectile.y -
+                            10,
+
                         6,
+
                         20
                     );
                 }
@@ -3444,9 +4217,12 @@ const Battle = (() => {
                 else {
 
                     ctx.fillStyle =
-                        p.type ===
+
+                        projectile.type ===
                         "crossfire"
+
                             ? "#ff2424"
+
                             : "#eeeeee";
 
 
@@ -3454,11 +4230,17 @@ const Battle = (() => {
 
 
                     ctx.arc(
-                        p.x,
-                        p.y,
-                        p.radius,
+
+                        projectile.x,
+
+                        projectile.y,
+
+                        projectile.radius,
+
                         0,
-                        Math.PI * 2
+
+                        Math.PI *
+                            2
                     );
 
 
@@ -3479,9 +4261,9 @@ const Battle = (() => {
     function drawEnemyProjectiles(now) {
 
         enemyProjectiles.forEach(
-            p => {
+            projectile => {
 
-                if (!p) {
+                if (!projectile) {
                     return;
                 }
 
@@ -3493,6 +4275,14 @@ const Battle = (() => {
                     "#ff2424";
 
 
+                ctx.shadowColor =
+                    "#ff2424";
+
+
+                ctx.shadowBlur =
+                    5;
+
+
                 ctx.lineWidth =
                     2;
 
@@ -3501,21 +4291,22 @@ const Battle = (() => {
 
 
                 ctx.arc(
-                    p.x,
-                    p.y,
-                    p.radius,
+
+                    projectile.x,
+
+                    projectile.y,
+
+                    projectile.radius,
+
                     0,
-                    Math.PI * 2
+
+                    Math.PI *
+                        2
                 );
 
 
                 ctx.stroke();
 
-
-                /*
-                    OBSERVE displays the future
-                    projectile path.
-                */
 
                 if (
                     now <
@@ -3535,18 +4326,21 @@ const Battle = (() => {
 
 
                     ctx.moveTo(
-                        p.x,
-                        p.y
+
+                        projectile.x,
+
+                        projectile.y
                     );
 
 
                     ctx.lineTo(
-                        p.x +
-                            p.vx *
+
+                        projectile.x +
+                            projectile.vx *
                             0.7,
 
-                        p.y +
-                            p.vy *
+                        projectile.y +
+                            projectile.vy *
                             0.7
                     );
 
@@ -3568,8 +4362,11 @@ const Battle = (() => {
     function drawPrediction(now) {
 
         if (
-            now >= predictionUntil &&
-            now >= observeUntil
+            now >=
+                predictionUntil &&
+
+            now >=
+                observeUntil
         ) {
 
             return;
@@ -3616,6 +4413,7 @@ const Battle = (() => {
 
         predictionUntil =
             Math.max(
+
                 predictionUntil,
 
                 performance.now() +
@@ -3631,9 +4429,9 @@ const Battle = (() => {
     function drawHazards(now) {
 
         hazards.forEach(
-            h => {
+            hazard => {
 
-                if (!h) {
+                if (!hazard) {
                     return;
                 }
 
@@ -3642,13 +4440,17 @@ const Battle = (() => {
 
 
                 const active =
+
                     now >=
-                    h.activateAt;
+                    hazard.activateAt;
 
 
                 ctx.strokeStyle =
+
                     active
+
                         ? "#ff2424"
+
                         : "rgba(255,36,36,.45)";
 
 
@@ -3668,11 +4470,17 @@ const Battle = (() => {
 
 
                 ctx.arc(
-                    h.x,
-                    h.y,
-                    h.radius,
+
+                    hazard.x,
+
+                    hazard.y,
+
+                    hazard.radius,
+
                     0,
-                    Math.PI * 2
+
+                    Math.PI *
+                        2
                 );
 
 
@@ -3703,7 +4511,9 @@ const Battle = (() => {
 
 
                 ctx.globalAlpha =
+
                     0.16 +
+
                     Math.sin(
                         now *
                         0.012
@@ -3716,9 +4526,15 @@ const Battle = (() => {
 
 
                 ctx.strokeRect(
-                    item.x - 13,
-                    item.y - 13,
+
+                    item.x -
+                        13,
+
+                    item.y -
+                        13,
+
                     26,
+
                     26
                 );
 
@@ -3744,11 +4560,19 @@ const Battle = (() => {
 
 
         ctx.globalAlpha =
-            0.28;
+            0.25;
 
 
         ctx.strokeStyle =
             "#ff2424";
+
+
+        ctx.shadowColor =
+            "#ff2424";
+
+
+        ctx.shadowBlur =
+            8;
 
 
         ctx.lineWidth =
@@ -3759,11 +4583,17 @@ const Battle = (() => {
 
 
         ctx.arc(
+
             decoy.x,
+
             decoy.y,
+
             forecast.radius,
+
             0,
-            Math.PI * 2
+
+            Math.PI *
+                2
         );
 
 
@@ -3786,26 +4616,32 @@ const Battle = (() => {
 
 
         const total =
+
             scythe.until -
             scythe.started;
 
 
         const elapsed =
+
             now -
             scythe.started;
 
 
         const progress =
             clamp(
+
                 elapsed /
                 total,
+
                 0,
                 1
             );
 
 
         const angle =
+
             -1.5 +
+
             progress *
             Math.PI;
 
@@ -3854,6 +4690,14 @@ const Battle = (() => {
             "#ff2424";
 
 
+        ctx.shadowColor =
+            "#ff2424";
+
+
+        ctx.shadowBlur =
+            10;
+
+
         ctx.lineWidth =
             6;
 
@@ -3862,10 +4706,15 @@ const Battle = (() => {
 
 
         ctx.arc(
+
             scythe.reach,
+
             -15,
+
             25,
+
             0.4,
+
             2.7
         );
 
@@ -3980,7 +4829,9 @@ const Battle = (() => {
 
 
                     ctx.arc(
+
                         effect.x,
+
                         effect.y,
 
                         18 +
@@ -3988,7 +4839,9 @@ const Battle = (() => {
                             25,
 
                         0,
-                        Math.PI * 2
+
+                        Math.PI *
+                            2
                     );
 
 
@@ -4010,22 +4863,30 @@ const Battle = (() => {
 
 
                     ctx.shadowBlur =
-                        12;
+                        18;
+
+
+                    ctx.lineWidth =
+                        3;
 
 
                     ctx.beginPath();
 
 
                     ctx.arc(
+
                         effect.x,
+
                         effect.y,
 
                         35 +
                             effect.life *
-                            60,
+                            70,
 
                         0,
-                        Math.PI * 2
+
+                        Math.PI *
+                            2
                     );
 
 
@@ -4046,7 +4907,9 @@ const Battle = (() => {
 
 
                     ctx.arc(
+
                         effect.x,
+
                         effect.y,
 
                         30 +
@@ -4054,7 +4917,9 @@ const Battle = (() => {
                             90,
 
                         0,
-                        Math.PI * 2
+
+                        Math.PI *
+                            2
                     );
 
 
@@ -4079,7 +4944,9 @@ const Battle = (() => {
 
 
                     ctx.arc(
+
                         effect.x,
+
                         effect.y,
 
                         16 +
@@ -4087,7 +4954,9 @@ const Battle = (() => {
                             70,
 
                         0,
-                        Math.PI * 2
+
+                        Math.PI *
+                            2
                     );
 
 
@@ -4113,11 +4982,17 @@ const Battle = (() => {
 
 
                     ctx.arc(
+
                         effect.x,
+
                         effect.y,
+
                         34,
+
                         0,
-                        Math.PI * 2
+
+                        Math.PI *
+                            2
                     );
 
 
@@ -4150,8 +5025,11 @@ const Battle = (() => {
 
 
         const percent =
+
             enemy.hp /
+
             enemy.maxHP *
+
             100;
 
 
@@ -4204,11 +5082,15 @@ const Battle = (() => {
 
         const percent =
             clamp(
+
                 stamina /
+
                 STAMINA_MAX *
+
                 100,
 
                 0,
+
                 100
             );
 
@@ -4245,7 +5127,9 @@ const Battle = (() => {
 
         if (status) {
 
-            if (statusText) {
+            if (
+                statusText
+            ) {
 
                 status.textContent =
                     statusText;
@@ -4261,7 +5145,8 @@ const Battle = (() => {
             }
 
             else if (
-                turn === TURN.ENEMY
+                turn ===
+                TURN.ENEMY
             ) {
 
                 status.textContent =
@@ -4288,11 +5173,6 @@ const Battle = (() => {
                 "turnBanner"
             );
 
-
-        /*
-            Update stamina state even if the
-            turn banner is missing.
-        */
 
         updateStaminaHUD();
 
@@ -4351,6 +5231,7 @@ const Battle = (() => {
 
                 {
                     detail: {
+
                         message:
                             text
                     }
@@ -4374,51 +5255,30 @@ const Battle = (() => {
     ) {
 
         const dx =
-            ax - bx;
+            ax -
+            bx;
 
 
         const dy =
-            ay - by;
+            ay -
+            by;
 
 
         const radius =
-            ar + br;
+            ar +
+            br;
 
 
         return (
+
             dx * dx +
+
             dy * dy
+
             <=
+
             radius *
             radius
-        );
-    }
-
-
-    function outsideArena(p) {
-
-        if (!p) {
-            return true;
-        }
-
-
-        return (
-
-            p.x <
-                arena.left -
-                80 ||
-
-            p.x >
-                arena.right +
-                80 ||
-
-            p.y <
-                arena.top -
-                80 ||
-
-            p.y >
-                arena.bottom +
-                80
         );
     }
 
@@ -4430,6 +5290,7 @@ const Battle = (() => {
     ) {
 
         return Math.max(
+
             min,
 
             Math.min(
@@ -4446,8 +5307,11 @@ const Battle = (() => {
     ) {
 
         return (
+
             min +
+
             Math.random() *
+
             (
                 max -
                 min
@@ -4466,27 +5330,19 @@ const Battle = (() => {
 
         reset,
 
-
-        /*
-            Kept temporarily so V0.3 game.js
-            doesn't explode before we replace it.
-        */
-
         setMovement,
-
 
         getTurn,
 
         isForecastTurn,
 
-
         getStamina:
-            () => stamina,
-
+            () =>
+                stamina,
 
         getMaxStamina:
-            () => STAMINA_MAX,
-
+            () =>
+                STAMINA_MAX,
 
         activatePrediction
     };
