@@ -1,5 +1,6 @@
 /* =========================================
-   FORECAST!SANS — GAME CONTROLLER V0.3
+   FORECAST!SANS — GAME CONTROLLER V0.4
+   AUTO-DODGE EDITION
 ========================================= */
 
 (() => {
@@ -15,13 +16,6 @@
         eyes: "RED EYE",
         technique: "BONES",
         forecast: "PREDICT"
-    };
-
-    const movement = {
-        up: false,
-        down: false,
-        left: false,
-        right: false
     };
 
 
@@ -56,15 +50,28 @@
 
 
     /* =====================================
-       ELEMENTS
+       DOM
     ===================================== */
 
-    let canvas;
-    let abilityList;
-    let actionButton;
-    let selectedDisplay;
-    let dialogueText;
-    let categoryButtons;
+    let canvas = null;
+
+    let abilityList = null;
+
+    let actionButton = null;
+
+    let selectedDisplay = null;
+
+    let dialogueText = null;
+
+    let categoryButtons = [];
+
+    let combatStatusTitle = null;
+
+    let combatStatusText = null;
+
+    let phaseLabel = null;
+
+    let phaseNodes = [];
 
 
     /* =====================================
@@ -85,43 +92,68 @@
 
             verifyModules();
 
+
             /*
-                Reset data systems before
-                starting the battle.
+                Reset all game-data modules.
             */
 
             ForecastPhases.reset();
+
             Weapons.reset();
+
             Eyes.reset();
+
             Techniques.reset();
 
-            installCategoryControls();
-            installActionButton();
-            installMovementControls();
-            installKeyboard();
-            installGameEvents();
 
             /*
-                Battle starts last so the UI
-                is already ready to receive
-                its events.
+                V0.4:
+
+                There are NO movement controls.
+
+                Forecast automatically dodges
+                protagonist attacks using stamina.
+            */
+
+            installCategoryControls();
+
+            installActionButton();
+
+            installKeyboard();
+
+            installGameEvents();
+
+
+            /*
+                Battle starts after the UI is
+                ready to receive its events.
             */
 
             Battle.init(canvas);
 
-            setCategory("weapon");
+
+            setCategory(
+                "weapon"
+            );
+
+
+            syncPhaseHUD();
 
             updateSelectedDisplay();
+
+            updateCombatStatus();
+
 
             setDialogue(
                 "Another possibility enters your sight."
             );
-
         }
 
         catch (error) {
 
-            showFatalError(error);
+            showFatalError(
+                error
+            );
 
             throw error;
         }
@@ -139,29 +171,62 @@
                 "gameCanvas"
             );
 
+
         abilityList =
             document.getElementById(
                 "abilityList"
             );
+
 
         actionButton =
             document.getElementById(
                 "actionButton"
             );
 
+
         selectedDisplay =
             document.getElementById(
                 "selectedDisplay"
             );
+
 
         dialogueText =
             document.getElementById(
                 "dialogueText"
             );
 
+
         categoryButtons =
-            document.querySelectorAll(
-                ".category-button"
+            Array.from(
+                document.querySelectorAll(
+                    ".category-button"
+                )
+            );
+
+
+        combatStatusTitle =
+            document.getElementById(
+                "combatStatusTitle"
+            );
+
+
+        combatStatusText =
+            document.getElementById(
+                "combatStatusText"
+            );
+
+
+        phaseLabel =
+            document.getElementById(
+                "phaseLabel"
+            );
+
+
+        phaseNodes =
+            Array.from(
+                document.querySelectorAll(
+                    ".phase-node"
+                )
             );
 
 
@@ -186,11 +251,31 @@
     function verifyModules() {
 
         const required = [
-            ["ForecastPhases", typeof ForecastPhases],
-            ["Weapons", typeof Weapons],
-            ["Eyes", typeof Eyes],
-            ["Techniques", typeof Techniques],
-            ["Battle", typeof Battle]
+
+            [
+                "ForecastPhases",
+                typeof ForecastPhases
+            ],
+
+            [
+                "Weapons",
+                typeof Weapons
+            ],
+
+            [
+                "Eyes",
+                typeof Eyes
+            ],
+
+            [
+                "Techniques",
+                typeof Techniques
+            ],
+
+            [
+                "Battle",
+                typeof Battle
+            ]
         ];
 
 
@@ -207,7 +292,9 @@
                 );
 
 
-        if (missing.length) {
+        if (
+            missing.length
+        ) {
 
             throw new Error(
                 "Missing module(s): " +
@@ -251,7 +338,9 @@
 
 
         if (
-            !allowed.includes(category)
+            !allowed.includes(
+                category
+            )
         ) {
             return;
         }
@@ -266,6 +355,7 @@
 
                 button.classList.toggle(
                     "active",
+
                     button.dataset.category ===
                     category
                 );
@@ -276,7 +366,10 @@
         renderAbilityList();
 
         updateSelectedDisplay();
+
         updateActionLabel();
+
+        updateCombatStatus();
     }
 
 
@@ -286,7 +379,15 @@
 
     function renderAbilityList() {
 
-        abilityList.innerHTML = "";
+        if (
+            !abilityList
+        ) {
+            return;
+        }
+
+
+        abilityList.innerHTML =
+            "";
 
 
         const names =
@@ -301,6 +402,13 @@
                         currentCategory,
                         name
                     );
+
+
+                if (
+                    !data
+                ) {
+                    return;
+                }
 
 
                 const unlocked =
@@ -332,11 +440,14 @@
                 }
 
 
-                if (!unlocked) {
+                if (
+                    !unlocked
+                ) {
 
                     button.classList.add(
                         "locked"
                     );
+
 
                     button.textContent =
                         `${name} — LOCKED: PHASE ${data.requiredPhase}`;
@@ -375,20 +486,29 @@
         ) {
 
             case "weapon":
+
                 return Weapons.getList();
 
+
             case "eyes":
+
                 return Eyes.getList();
 
+
             case "technique":
+
                 return Techniques.getList();
 
+
             case "forecast":
+
                 return Object.keys(
                     FORECAST_ABILITIES
                 );
 
+
             default:
+
                 return [];
         }
     }
@@ -403,29 +523,42 @@
         name
     ) {
 
-        switch (category) {
+        switch (
+            category
+        ) {
 
             case "weapon":
+
                 return Weapons.getData(
                     name
                 );
 
+
             case "eyes":
+
                 return Eyes.getData(
                     name
                 );
 
+
             case "technique":
+
                 return Techniques.getData(
                     name
                 );
 
+
             case "forecast":
-                return FORECAST_ABILITIES[
-                    name
-                ] || null;
+
+                return (
+                    FORECAST_ABILITIES[
+                        name
+                    ] || null
+                );
+
 
             default:
+
                 return null;
         }
     }
@@ -436,24 +569,32 @@
         name
     ) {
 
-        switch (category) {
+        switch (
+            category
+        ) {
 
             case "weapon":
 
                 return Weapons
-                    .isUnlocked(name);
+                    .isUnlocked(
+                        name
+                    );
 
 
             case "eyes":
 
                 return Eyes
-                    .isUnlocked(name);
+                    .isUnlocked(
+                        name
+                    );
 
 
             case "technique":
 
                 return Techniques
-                    .isUnlocked(name);
+                    .isUnlocked(
+                        name
+                    );
 
 
             case "forecast": {
@@ -464,7 +605,9 @@
                     ];
 
 
-                if (!ability) {
+                if (
+                    !ability
+                ) {
                     return false;
                 }
 
@@ -477,6 +620,7 @@
 
 
             default:
+
                 return false;
         }
     }
@@ -495,7 +639,9 @@
             );
 
 
-        if (!data) {
+        if (
+            !data
+        ) {
             return;
         }
 
@@ -515,7 +661,8 @@
         }
 
 
-        let success = true;
+        let success =
+            true;
 
 
         switch (
@@ -561,7 +708,9 @@
         }
 
 
-        if (!success) {
+        if (
+            !success
+        ) {
             return;
         }
 
@@ -574,10 +723,15 @@
         renderAbilityList();
 
         updateSelectedDisplay();
+
         updateActionLabel();
 
+        updateCombatStatus();
 
-        if (data.description) {
+
+        if (
+            data.description
+        ) {
 
             setDialogue(
                 data.description
@@ -612,7 +766,7 @@
                 ) {
 
                     setDialogue(
-                        "Dodge first. Attack when Forecast's turn begins."
+                        "Forecast is auto-dodging. Attack when your turn returns."
                     );
 
                     return;
@@ -638,7 +792,7 @@
                 ) {
 
                     setDialogue(
-                        "Dodge first. Techniques return on Forecast's turn."
+                        "Forecast is auto-dodging. Techniques return on your turn."
                     );
 
                     return;
@@ -656,11 +810,14 @@
 
                 break;
         }
+
+
+        updateCombatStatus();
     }
 
 
     /* =====================================
-       FORECAST
+       FORECAST ABILITIES
     ===================================== */
 
     function activateForecast() {
@@ -675,7 +832,9 @@
             ];
 
 
-        if (!ability) {
+        if (
+            !ability
+        ) {
             return;
         }
 
@@ -737,6 +896,13 @@
 
     function updateActionLabel() {
 
+        if (
+            !actionButton
+        ) {
+            return;
+        }
+
+
         switch (
             currentCategory
         ) {
@@ -777,7 +943,9 @@
 
     function updateSelectedDisplay() {
 
-        if (!selectedDisplay) {
+        if (
+            !selectedDisplay
+        ) {
             return;
         }
 
@@ -790,99 +958,11 @@
 
 
     /* =====================================
-       MOVEMENT — MOBILE
-    ===================================== */
-
-    function installMovementControls() {
-
-        bindMoveButton(
-            "upButton",
-            "up"
-        );
-
-        bindMoveButton(
-            "downButton",
-            "down"
-        );
-
-        bindMoveButton(
-            "leftButton",
-            "left"
-        );
-
-        bindMoveButton(
-            "rightButton",
-            "right"
-        );
-    }
-
-
-    function bindMoveButton(
-        id,
-        direction
-    ) {
-
-        const button =
-            document.getElementById(
-                id
-            );
-
-
-        if (!button) {
-            return;
-        }
-
-
-        const press =
-            event => {
-
-                event.preventDefault();
-
-                movement[
-                    direction
-                ] = true;
-
-                updateMovement();
-            };
-
-
-        const release =
-            event => {
-
-                event.preventDefault();
-
-                movement[
-                    direction
-                ] = false;
-
-                updateMovement();
-            };
-
-
-        button.addEventListener(
-            "pointerdown",
-            press
-        );
-
-        button.addEventListener(
-            "pointerup",
-            release
-        );
-
-        button.addEventListener(
-            "pointercancel",
-            release
-        );
-
-        button.addEventListener(
-            "pointerleave",
-            release
-        );
-    }
-
-
-    /* =====================================
        KEYBOARD
+
+       NO WASD.
+       NO ARROWS.
+       NO MANUAL MOVEMENT.
     ===================================== */
 
     function installKeyboard() {
@@ -891,25 +971,10 @@
             "keydown",
             event => {
 
-                const direction =
-                    keyToDirection(
-                        event.key
-                    );
-
-
-                if (direction) {
-
-                    event.preventDefault();
-
-                    movement[
-                        direction
-                    ] = true;
-
-                    updateMovement();
-
-                    return;
-                }
-
+                /*
+                    Space / Enter:
+                    use selected ability.
+                */
 
                 if (
                     event.key === " " ||
@@ -919,148 +984,64 @@
                     event.preventDefault();
 
                     useSelectedAbility();
+
+                    return;
                 }
 
 
-                if (event.key === "1") {
+                /*
+                    1 — Weapon
+                    2 — Eyes
+                    3 — Technique
+                    4 — Forecast
+                */
+
+                if (
+                    event.key === "1"
+                ) {
+
                     setCategory(
                         "weapon"
                     );
+
+                    return;
                 }
 
 
-                if (event.key === "2") {
+                if (
+                    event.key === "2"
+                ) {
+
                     setCategory(
                         "eyes"
                     );
+
+                    return;
                 }
 
 
-                if (event.key === "3") {
+                if (
+                    event.key === "3"
+                ) {
+
                     setCategory(
                         "technique"
                     );
+
+                    return;
                 }
 
 
-                if (event.key === "4") {
+                if (
+                    event.key === "4"
+                ) {
+
                     setCategory(
                         "forecast"
                     );
                 }
             }
         );
-
-
-        window.addEventListener(
-            "keyup",
-            event => {
-
-                const direction =
-                    keyToDirection(
-                        event.key
-                    );
-
-
-                if (!direction) {
-                    return;
-                }
-
-
-                event.preventDefault();
-
-                movement[
-                    direction
-                ] = false;
-
-                updateMovement();
-            }
-        );
-
-
-        /*
-            Prevent stuck movement when
-            switching apps/tabs.
-        */
-
-        window.addEventListener(
-            "blur",
-            clearMovement
-        );
-    }
-
-
-    function keyToDirection(key) {
-
-        switch (
-            key.toLowerCase()
-        ) {
-
-            case "w":
-            case "arrowup":
-                return "up";
-
-            case "s":
-            case "arrowdown":
-                return "down";
-
-            case "a":
-            case "arrowleft":
-                return "left";
-
-            case "d":
-            case "arrowright":
-                return "right";
-
-            default:
-                return null;
-        }
-    }
-
-
-    function updateMovement() {
-
-        const x =
-            (
-                movement.right
-                ? 1
-                : 0
-            ) -
-            (
-                movement.left
-                ? 1
-                : 0
-            );
-
-
-        const y =
-            (
-                movement.down
-                ? 1
-                : 0
-            ) -
-            (
-                movement.up
-                ? 1
-                : 0
-            );
-
-
-        Battle.setMovement(
-            x,
-            y
-        );
-    }
-
-
-    function clearMovement() {
-
-        movement.up = false;
-        movement.down = false;
-        movement.left = false;
-        movement.right = false;
-
-        updateMovement();
     }
 
 
@@ -1083,6 +1064,9 @@
                         event.detail.message
                     );
                 }
+
+
+                updateCombatStatus();
             }
         );
 
@@ -1091,19 +1075,27 @@
             "forecast-phase-change",
             event => {
 
+                const detail =
+                    event.detail || {};
+
+
                 const phase =
-                    event.detail.phase;
+                    detail.phase ||
+                    ForecastPhases.getPhase();
 
 
                 /*
-                    New phase means new
-                    abilities may have become
-                    available.
+                    New phase can unlock
+                    new abilities.
                 */
 
                 renderAbilityList();
 
                 updateSelectedDisplay();
+
+                syncPhaseHUD();
+
+                updateCombatStatus();
 
 
                 if (
@@ -1127,12 +1119,195 @@
 
 
     /* =====================================
+       PHASE HUD
+
+       phases.js V0.3 used an older HUD ID.
+       V0.4 keeps this synced independently.
+    ===================================== */
+
+    function syncPhaseHUD() {
+
+        const phase =
+            String(
+                ForecastPhases
+                    .getPhase()
+            );
+
+
+        if (
+            phaseLabel
+        ) {
+
+            phaseLabel.textContent =
+                `PHASE ${phase}`;
+        }
+
+
+        const phases =
+            typeof ForecastPhases
+                .getAllPhases === "function"
+                ? ForecastPhases.getAllPhases()
+                : [
+                    "1",
+                    "1.5",
+                    "2",
+                    "2.5",
+                    "3",
+                    "3.5",
+                    "4",
+                    "4.5",
+                    "5"
+                ];
+
+
+        const currentIndex =
+            phases.indexOf(
+                phase
+            );
+
+
+        phaseNodes.forEach(
+            (
+                node,
+                index
+            ) => {
+
+                node.classList.toggle(
+                    "active",
+                    index === currentIndex
+                );
+
+
+                node.classList.toggle(
+                    "passed",
+                    index < currentIndex
+                );
+            }
+        );
+    }
+
+
+    /* =====================================
+       COMBAT STATUS
+    ===================================== */
+
+    function updateCombatStatus() {
+
+        if (
+            !combatStatusTitle &&
+            !combatStatusText
+        ) {
+            return;
+        }
+
+
+        const forecastTurn =
+            Battle &&
+            typeof Battle
+                .isForecastTurn ===
+                "function"
+                ? Battle.isForecastTurn()
+                : true;
+
+
+        if (
+            forecastTurn
+        ) {
+
+            if (
+                combatStatusTitle
+            ) {
+
+                combatStatusTitle.textContent =
+                    "YOUR TURN";
+            }
+
+
+            if (
+                combatStatusText
+            ) {
+
+                combatStatusText.textContent =
+                    "Choose an attack, eye, technique, or Forecast ability.";
+            }
+        }
+
+        else {
+
+            if (
+                combatStatusTitle
+            ) {
+
+                combatStatusTitle.textContent =
+                    "AUTO-DODGE";
+            }
+
+
+            if (
+                combatStatusText
+            ) {
+
+                const stamina =
+                    typeof Battle.getStamina ===
+                        "function"
+                        ? Math.ceil(
+                            Battle.getStamina()
+                        )
+                        : "?";
+
+
+                combatStatusText.textContent =
+                    `Forecast is evading automatically. Stamina: ${stamina}/100`;
+            }
+        }
+    }
+
+
+    /*
+        Battle's turn changes happen internally,
+        so periodically refresh only the small
+        combat-status text.
+
+        This does NOT control gameplay.
+    */
+
+    window.setInterval(
+        () => {
+
+            try {
+
+                if (
+                    typeof Battle !==
+                    "undefined"
+                ) {
+
+                    updateCombatStatus();
+                }
+            }
+
+            catch (_) {
+
+                /*
+                    Ignore status refresh errors.
+                    Actual game errors still use
+                    the normal fatal-error system.
+                */
+            }
+        },
+
+        250
+    );
+
+
+    /* =====================================
        DIALOGUE
     ===================================== */
 
     function setDialogue(message) {
 
-        if (!dialogueText) {
+        if (
+            !dialogueText
+        ) {
             return;
         }
 
@@ -1154,7 +1329,9 @@
             );
 
 
-        if (!box) {
+        if (
+            !box
+        ) {
             return;
         }
 
@@ -1168,8 +1345,8 @@
             (
                 error &&
                 error.message
-                ? error.message
-                : String(error)
+                    ? error.message
+                    : String(error)
             );
     }
 
