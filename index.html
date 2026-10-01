@@ -1,1072 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>FORECAST!SANS — Same End Anyway</title>
+    <meta charset="UTF-8">
 
-<style>
-* {
-    box-sizing: border-box;
-    image-rendering: pixelated;
-    -webkit-tap-highlight-color: transparent;
-}
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, user-scalable=no"
+    >
 
-html, body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    background: #000;
-    color: #fff;
-    overflow: hidden;
-    font-family: monospace;
-}
+    <meta name="theme-color" content="#000000">
 
-#game {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    background:
-        radial-gradient(circle at 50% 35%, #170000 0%, #050000 30%, #000 70%);
-}
+    <title>FORECAST!SANS — Same End Anyway</title>
 
-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-}
-
-/* ---------- HUD ---------- */
-
-#hud {
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    top: 12px;
-
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-
-    pointer-events: none;
-}
-
-.hudBlock {
-    width: 47%;
-}
-
-.name {
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-
-.bar {
-    height: 13px;
-    border: 2px solid white;
-    background: black;
-}
-
-.fill {
-    height: 100%;
-}
-
-#bossHP {
-    width: 100%;
-    background: #d00;
-}
-
-#enemyHP {
-    width: 100%;
-    background: white;
-}
-
-.small {
-    margin-top: 3px;
-    font-size: 10px;
-    opacity: .8;
-}
-
-/* ---------- Dialogue ---------- */
-
-#dialogue {
-    position: absolute;
-
-    left: 6%;
-    right: 6%;
-    bottom: 145px;
-
-    min-height: 80px;
-
-    border: 3px solid white;
-    background: #000;
-
-    padding: 12px;
-
-    font-size: 16px;
-    line-height: 1.35;
-
-    display: none;
-}
-
-/* ---------- Powers ---------- */
-
-#powers {
-    position: absolute;
-
-    left: 8px;
-    right: 8px;
-    bottom: 75px;
-
-    display: flex;
-    justify-content: center;
-    gap: 7px;
-}
-
-.power {
-    min-width: 67px;
-    min-height: 46px;
-
-    border: 2px solid #777;
-    background: #080808;
-    color: white;
-
-    font-family: monospace;
-    font-size: 11px;
-
-    padding: 5px;
-}
-
-.power.active {
-    border-color: red;
-    color: red;
-}
-
-.power:active {
-    transform: scale(.94);
-}
-
-/* ---------- Movement ---------- */
-
-#movement {
-    position: absolute;
-    left: 14px;
-    bottom: 12px;
-
-    display: grid;
-
-    grid-template-columns: 48px 48px 48px;
-    grid-template-rows: 48px 48px;
-
-    gap: 4px;
-}
-
-.move {
-    border: 2px solid #555;
-    background: #111;
-    color: white;
-
-    font-size: 20px;
-}
-
-#up {
-    grid-column: 2;
-}
-
-#left {
-    grid-column: 1;
-    grid-row: 2;
-}
-
-#down {
-    grid-column: 2;
-    grid-row: 2;
-}
-
-#right {
-    grid-column: 3;
-    grid-row: 2;
-}
-
-/* ---------- Attack ---------- */
-
-#attack {
-    position: absolute;
-
-    right: 18px;
-    bottom: 18px;
-
-    width: 88px;
-    height: 88px;
-
-    border-radius: 50%;
-
-    border: 3px solid red;
-
-    background: #160000;
-    color: white;
-
-    font-family: monospace;
-    font-weight: bold;
-    font-size: 15px;
-}
-
-#attack:active {
-    background: red;
-    color: black;
-}
-</style>
+    <link rel="stylesheet" href="./css/game.css">
 </head>
 
 <body>
 
 <div id="game">
 
-<canvas id="canvas"></canvas>
+    <!-- MAIN GAME CANVAS -->
+    <canvas id="gameCanvas"></canvas>
 
-<div id="hud">
 
-    <div class="hudBlock">
-        <div class="name">FORECAST!SANS</div>
+    <!-- =========================
+         TOP HUD
+    ========================== -->
 
-        <div class="bar">
-            <div id="bossHP" class="fill"></div>
+    <header id="hud">
+
+        <section class="hud-side boss-hud">
+
+            <div class="hud-name">
+                FORECAST!SANS
+            </div>
+
+            <div id="phaseLabel">
+                PHASE 1
+            </div>
+
+            <div id="phaseTrack">
+
+                <span class="phase-node active">1</span>
+                <span class="phase-node">1.5</span>
+                <span class="phase-node">2</span>
+                <span class="phase-node">2.5</span>
+                <span class="phase-node">3</span>
+                <span class="phase-node">3.5</span>
+                <span class="phase-node">4</span>
+                <span class="phase-node">4.5</span>
+                <span class="phase-node">5</span>
+
+            </div>
+
+        </section>
+
+
+        <section class="hud-side enemy-hud">
+
+            <div id="enemyName" class="hud-name">
+                UNKNOWN
+            </div>
+
+            <div class="hp-shell">
+                <div id="enemyHP"></div>
+            </div>
+
+            <div id="enemyStatus">
+                DETERMINATION
+            </div>
+
+        </section>
+
+    </header>
+
+
+    <!-- =========================
+         PHASE TRANSITION
+    ========================== -->
+
+    <div id="phaseTransition">
+
+        <div id="phaseTransitionSmall">
+            HIT CONFIRMED
         </div>
 
-        <div class="small" id="phaseText">
-            PHASE 1 — AWAKENING
+        <div id="phaseTransitionBig">
+            PHASE 1.5
         </div>
+
     </div>
 
-    <div class="hudBlock" style="text-align:right">
 
-        <div class="name" id="enemyName">
-            UNKNOWN HUMAN
+    <!-- =========================
+         DIALOGUE
+    ========================== -->
+
+    <section id="dialogueBox">
+
+        <span id="dialogueStar">*</span>
+
+        <span id="dialogueText">
+            Another possibility enters your sight.
+        </span>
+
+    </section>
+
+
+    <!-- =========================
+         SUB MENU
+    ========================== -->
+
+    <section id="abilityPanel">
+
+        <div id="abilityTitle">
+            ARSENAL
         </div>
 
-        <div class="bar">
-            <div id="enemyHP" class="fill"></div>
+        <div id="abilityOptions">
+            <!-- JavaScript generates buttons here -->
         </div>
 
-        <div class="small" id="enemyInfo">
-            ♥ DETERMINATION
+    </section>
+
+
+    <!-- =========================
+         MAIN MENU
+    ========================== -->
+
+    <nav id="battleMenu">
+
+        <button
+            class="menu-button active"
+            data-menu="weapon"
+        >
+            WEAPON
+        </button>
+
+        <button
+            class="menu-button"
+            data-menu="eyes"
+        >
+            EYES
+        </button>
+
+        <button
+            class="menu-button"
+            data-menu="technique"
+        >
+            TECHNIQUE
+        </button>
+
+        <button
+            class="menu-button"
+            data-menu="forecast"
+        >
+            FORECAST
+        </button>
+
+    </nav>
+
+
+    <!-- =========================
+         MOBILE MOVEMENT
+    ========================== -->
+
+    <section id="mobileControls">
+
+        <div id="dpad">
+
+            <button
+                class="move-button"
+                id="moveUp"
+                aria-label="Move up"
+            >
+                ▲
+            </button>
+
+            <button
+                class="move-button"
+                id="moveLeft"
+                aria-label="Move left"
+            >
+                ◀
+            </button>
+
+            <button
+                class="move-button"
+                id="moveDown"
+                aria-label="Move down"
+            >
+                ▼
+            </button>
+
+            <button
+                class="move-button"
+                id="moveRight"
+                aria-label="Move right"
+            >
+                ▶
+            </button>
+
         </div>
 
-    </div>
+
+        <button id="attackButton">
+            ATTACK
+        </button>
+
+    </section>
+
+
+    <!-- =========================
+         DEBUG / STATE DISPLAY
+    ========================== -->
+
+    <aside id="battleState">
+
+        <span id="turnText">
+            YOUR TURN
+        </span>
+
+        <span class="separator">
+            /
+        </span>
+
+        <span id="selectedAbility">
+            GLOCK
+        </span>
+
+    </aside>
 
 </div>
 
-<div id="dialogue">
-    * Another possibility enters your sight.
-</div>
 
-<div id="powers">
-
-    <button class="power active" data-power="bone">
-        BONES
-    </button>
-
-    <button class="power" data-power="forecast">
-        FORECAST
-    </button>
-
-    <button class="power" data-power="teleport">
-        TP
-    </button>
-
-    <button class="power" data-power="illusion">
-        ILLUSION
-    </button>
-
-</div>
-
-<div id="movement">
-
-    <button class="move" id="up">▲</button>
-    <button class="move" id="left">◀</button>
-    <button class="move" id="down">▼</button>
-    <button class="move" id="right">▶</button>
-
-</div>
-
-<button id="attack">
-ATTACK
-</button>
-
-</div>
-
-<script>
-
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-
-let W = 0;
-let H = 0;
-
-function resize() {
-
-    const scale = window.devicePixelRatio || 1;
-
-    W = window.innerWidth;
-    H = window.innerHeight;
-
-    canvas.width = W * scale;
-    canvas.height = H * scale;
-
-    ctx.setTransform(scale,0,0,scale,0,0);
-}
-
-resize();
-window.addEventListener("resize", resize);
-
-
-/* ============================
-   GAME STATE
-============================ */
-
-let selectedPower = "bone";
-
-let bossHP = 100;
-let enemyHP = 100;
-
-let projectiles = [];
-
-let lastTime = 0;
-
-
-/* ============================
-   BOSS
-============================ */
-
-const boss = {
-
-    x: 100,
-    y: 190,
-
-    size: 30,
-
-    speed: 230
-
-};
-
-
-/* ============================
-   PROTAGONIST
-============================ */
-
-const enemy = {
-
-    x: 0,
-    y: 0,
-
-    size: 13,
-
-    speed: 130,
-
-    targetX: 0,
-    targetY: 0,
-
-    timer: 0
-
-};
-
-
-/* ============================
-   BATTLE BOX
-============================ */
-
-function battleBox() {
-
-    const width = Math.min(W * .48, 330);
-    const height = Math.min(H * .36, 260);
-
-    return {
-
-        x: W / 2 - width / 2,
-        y: H / 2 - height / 2 + 15,
-
-        width,
-        height
-
-    };
-
-}
-
-
-function resetEnemyPosition() {
-
-    const box = battleBox();
-
-    enemy.x = box.x + box.width / 2;
-    enemy.y = box.y + box.height / 2;
-
-    enemy.targetX = enemy.x;
-    enemy.targetY = enemy.y;
-
-}
-
-resetEnemyPosition();
-
-
-/* ============================
-   INPUT
-============================ */
-
-const movement = {
-
-    up:false,
-    down:false,
-    left:false,
-    right:false
-
-};
-
-
-function bindMovement(id, direction) {
-
-    const button = document.getElementById(id);
-
-    function start(e) {
-
-        e.preventDefault();
-
-        movement[direction] = true;
-
-    }
-
-    function stop(e) {
-
-        e.preventDefault();
-
-        movement[direction] = false;
-
-    }
-
-    button.addEventListener("pointerdown", start);
-    button.addEventListener("pointerup", stop);
-    button.addEventListener("pointercancel", stop);
-    button.addEventListener("pointerleave", stop);
-
-}
-
-bindMovement("up","up");
-bindMovement("down","down");
-bindMovement("left","left");
-bindMovement("right","right");
-
-
-/* Keyboard controls */
-
-window.addEventListener("keydown", e => {
-
-    if(e.key === "ArrowUp" || e.key === "w")
-        movement.up = true;
-
-    if(e.key === "ArrowDown" || e.key === "s")
-        movement.down = true;
-
-    if(e.key === "ArrowLeft" || e.key === "a")
-        movement.left = true;
-
-    if(e.key === "ArrowRight" || e.key === "d")
-        movement.right = true;
-
-    if(e.key === " ")
-        attack();
-
-});
-
-
-window.addEventListener("keyup", e => {
-
-    if(e.key === "ArrowUp" || e.key === "w")
-        movement.up = false;
-
-    if(e.key === "ArrowDown" || e.key === "s")
-        movement.down = false;
-
-    if(e.key === "ArrowLeft" || e.key === "a")
-        movement.left = false;
-
-    if(e.key === "ArrowRight" || e.key === "d")
-        movement.right = false;
-
-});
-
-
-/* ============================
-   POWER SELECTION
-============================ */
-
-document.querySelectorAll(".power").forEach(button => {
-
-    button.addEventListener("click", () => {
-
-        document
-            .querySelectorAll(".power")
-            .forEach(b => b.classList.remove("active"));
-
-        button.classList.add("active");
-
-        selectedPower = button.dataset.power;
-
-    });
-
-});
-
-
-/* ============================
-   ATTACK SYSTEM
-============================ */
-
-document
-.getElementById("attack")
-.addEventListener("click", attack);
-
-
-function attack() {
-
-    if(selectedPower === "bone") {
-
-        boneAttack();
-
-    }
-
-    else if(selectedPower === "forecast") {
-
-        forecastAttack();
-
-    }
-
-    else if(selectedPower === "teleport") {
-
-        teleport();
-
-    }
-
-    else if(selectedPower === "illusion") {
-
-        illusionAttack();
-
-    }
-
-}
-
-
-/* ---------- BONES ---------- */
-
-function boneAttack() {
-
-    const box = battleBox();
-
-    for(let i = 0; i < 5; i++) {
-
-        projectiles.push({
-
-            type:"bone",
-
-            x:box.x - 20 - i * 28,
-
-            y:
-                box.y +
-                20 +
-                Math.random() *
-                (box.height - 40),
-
-            vx:250 + Math.random() * 80,
-
-            vy:0,
-
-            width:28,
-            height:7,
-
-            life:4
-
-        });
-
-    }
-
-}
-
-
-/* ---------- FORECAST ---------- */
-
-let forecastTimer = 0;
-
-function forecastAttack() {
-
-    forecastTimer = 1.5;
-
-}
-
-
-/* ---------- TELEPORT ---------- */
-
-function teleport() {
-
-    boss.x =
-        40 +
-        Math.random() *
-        Math.max(40, W - 80);
-
-    boss.y =
-        100 +
-        Math.random() *
-        Math.max(40, H * .35);
-
-}
-
-
-/* ---------- ILLUSION ---------- */
-
-function illusionAttack() {
-
-    const box = battleBox();
-
-    for(let i = 0; i < 8; i++) {
-
-        projectiles.push({
-
-            type:"illusion",
-
-            x:
-                box.x +
-                Math.random() *
-                box.width,
-
-            y:
-                box.y +
-                Math.random() *
-                box.height,
-
-            vx:
-                (Math.random() - .5) *
-                100,
-
-            vy:
-                (Math.random() - .5) *
-                100,
-
-            width:8,
-            height:8,
-
-            life:2.5
-
-        });
-
-    }
-
-}
-
-
-/* ============================
-   UPDATE
-============================ */
-
-function update(dt) {
-
-    /* Boss movement */
-
-    if(movement.up)
-        boss.y -= boss.speed * dt;
-
-    if(movement.down)
-        boss.y += boss.speed * dt;
-
-    if(movement.left)
-        boss.x -= boss.speed * dt;
-
-    if(movement.right)
-        boss.x += boss.speed * dt;
-
-
-    boss.x =
-        Math.max(20,
-        Math.min(W - 20, boss.x));
-
-    boss.y =
-        Math.max(75,
-        Math.min(H * .40, boss.y));
-
-
-    /* Enemy AI */
-
-    const box = battleBox();
-
-    enemy.timer -= dt;
-
-    if(enemy.timer <= 0) {
-
-        enemy.timer =
-            .25 +
-            Math.random() * .45;
-
-        enemy.targetX =
-            box.x +
-            15 +
-            Math.random() *
-            (box.width - 30);
-
-        enemy.targetY =
-            box.y +
-            15 +
-            Math.random() *
-            (box.height - 30);
-
-    }
-
-
-    const dx =
-        enemy.targetX -
-        enemy.x;
-
-    const dy =
-        enemy.targetY -
-        enemy.y;
-
-    const distance =
-        Math.hypot(dx,dy);
-
-
-    if(distance > 2) {
-
-        enemy.x +=
-            dx / distance *
-            enemy.speed *
-            dt;
-
-        enemy.y +=
-            dy / distance *
-            enemy.speed *
-            dt;
-
-    }
-
-
-    /* Projectiles */
-
-    for(const p of projectiles) {
-
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-
-        p.life -= dt;
-
-
-        if(
-            Math.abs(p.x - enemy.x)
-            <
-            p.width / 2 +
-            enemy.size / 2
-
-            &&
-
-            Math.abs(p.y - enemy.y)
-            <
-            p.height / 2 +
-            enemy.size / 2
-        ) {
-
-            enemyHP -= 8;
-
-            enemyHP =
-                Math.max(0,enemyHP);
-
-            p.life = 0;
-
-            updateHUD();
-
-        }
-
-    }
-
-
-    projectiles =
-        projectiles.filter(
-            p => p.life > 0
-        );
-
-
-    if(forecastTimer > 0)
-        forecastTimer -= dt;
-
-}
-
-
-/* ============================
-   DRAWING
-============================ */
-
-function draw() {
-
-    ctx.clearRect(0,0,W,H);
-
-
-    /* Boss shadow */
-
-    ctx.fillStyle = "#220000";
-
-    ctx.fillRect(
-        boss.x - 20,
-        boss.y + 28,
-        40,
-        5
-    );
-
-
-    /* Forecast Sans placeholder */
-
-    ctx.fillStyle = "#111";
-
-    ctx.fillRect(
-        boss.x - 15,
-        boss.y - 25,
-        30,
-        50
-    );
-
-
-    /* Hood */
-
-    ctx.fillStyle = "#050505";
-
-    ctx.fillRect(
-        boss.x - 19,
-        boss.y - 28,
-        38,
-        22
-    );
-
-
-    /* Red eye */
-
-    ctx.fillStyle = "#f00";
-
-    ctx.fillRect(
-        boss.x + 3,
-        boss.y - 17,
-        6,
-        4
-    );
-
-
-    /* Battle box */
-
-    const box = battleBox();
-
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 3;
-
-    ctx.strokeRect(
-        box.x,
-        box.y,
-        box.width,
-        box.height
-    );
-
-
-    /* Prediction */
-
-    if(forecastTimer > 0) {
-
-        ctx.strokeStyle =
-            "rgba(255,0,0,.7)";
-
-        ctx.setLineDash([5,5]);
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            enemy.x,
-            enemy.y
-        );
-
-        ctx.lineTo(
-            enemy.targetX,
-            enemy.targetY
-        );
-
-        ctx.stroke();
-
-        ctx.setLineDash([]);
-
-
-        ctx.fillStyle =
-            "rgba(255,0,0,.3)";
-
-        ctx.fillRect(
-            enemy.targetX - 7,
-            enemy.targetY - 7,
-            14,
-            14
-        );
-
-    }
-
-
-    /* Enemy SOUL */
-
-    drawHeart(
-        enemy.x,
-        enemy.y,
-        1
-    );
-
-
-    /* Projectiles */
-
-    for(const p of projectiles) {
-
-        if(p.type === "bone") {
-
-            ctx.fillStyle = "#fff";
-
-        }
-
-        else {
-
-            ctx.fillStyle =
-                "rgba(255,0,0,.55)";
-
-        }
-
-        ctx.fillRect(
-            p.x - p.width/2,
-            p.y - p.height/2,
-            p.width,
-            p.height
-        );
-
-    }
-
-}
-
-
-/* ============================
-   PIXEL HEART
-============================ */
-
-function drawHeart(x,y,s) {
-
-    const pixel = 3 * s;
-
-    const heart = [
-
-        "0110110",
-        "1111111",
-        "1111111",
-        "0111110",
-        "0011100",
-        "0001000"
-
-    ];
-
-    ctx.fillStyle = "#ff2020";
-
-    for(let row = 0;
-        row < heart.length;
-        row++) {
-
-        for(let col = 0;
-            col < heart[row].length;
-            col++) {
-
-            if(
-                heart[row][col] === "1"
-            ) {
-
-                ctx.fillRect(
-
-                    x +
-                    (col - 3) *
-                    pixel,
-
-                    y +
-                    (row - 2) *
-                    pixel,
-
-                    pixel,
-                    pixel
-
-                );
-
-            }
-
-        }
-
-    }
-
-}
-
-
-/* ============================
-   HUD
-============================ */
-
-function updateHUD() {
-
-    document
-    .getElementById("bossHP")
-    .style.width =
-        bossHP + "%";
-
-
-    document
-    .getElementById("enemyHP")
-    .style.width =
-        enemyHP + "%";
-
-
-    if(enemyHP <= 0) {
-
-        showDialogue(
-            "* POSSIBILITY TERMINATED."
-        );
-
-    }
-
-}
-
-
-function showDialogue(text) {
-
-    const box =
-        document.getElementById(
-            "dialogue"
-        );
-
-    box.textContent = text;
-
-    box.style.display =
-        "block";
-
-}
-
-
-/* ============================
-   GAME LOOP
-============================ */
-
-function loop(time) {
-
-    const dt =
-        Math.min(
-            (time-lastTime)/1000,
-            .033
-        );
-
-    lastTime = time;
-
-    update(dt);
-    draw();
-
-    requestAnimationFrame(loop);
-
-}
-
-requestAnimationFrame(loop);
-
-</script>
+<!-- =============================
+     GAME MODULES
+
+     Order matters.
+============================== -->
+
+<script src="./js/phases.js"></script>
+<script src="./js/weapons.js"></script>
+<script src="./js/eyes.js"></script>
+<script src="./js/techniques.js"></script>
+<script src="./js/battle.js"></script>
+<script src="./js/game.js"></script>
 
 </body>
 </html>
