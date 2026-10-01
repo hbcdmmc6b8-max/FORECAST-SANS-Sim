@@ -1,16 +1,19 @@
 /* =========================================================
    FORECAST!SANS — SAME END ANYWAY
-   V1 GAME / UI / INPUT CONTROLLER
+   GAME CONTROLLER V1.1
 
-   - Connects all modules
-   - NO USE / ATTACK BUTTON
-   - Touch + mouse drag aiming
-   - Release = attack
-   - Arsenal selection
-   - Locked abilities stay visible
-   - Cooldown display
-   - Phase / stamina / HP UI
-   - Only #gameCanvas is required
+   SELECT ABILITY
+        ↓
+   TOUCH / CLICK CANVAS
+        ↓
+   DRAG TO AIM
+        ↓
+   RELEASE
+        ↓
+   ATTACK EXACT DRAG TARGET
+
+   NO ATTACK BUTTON
+   NO AUTO-AIM BRIDGE
 ========================================================= */
 
 (() => {
@@ -22,88 +25,78 @@
     ===================================================== */
 
     const canvas =
-        document.getElementById(
-            "gameCanvas"
-        );
-
-    const phaseLabel =
-        document.getElementById(
-            "phaseLabel"
-        );
-
-    const phaseTrack =
-        document.getElementById(
-            "phaseTrack"
-        );
-
-    const turnBanner =
-        document.getElementById(
-            "turnBanner"
-        );
-
-    const staminaFill =
-        document.getElementById(
-            "staminaFill"
-        );
-
-    const staminaText =
-        document.getElementById(
-            "staminaText"
-        );
-
-    const enemyHealthFill =
-        document.getElementById(
-            "enemyHealthFill"
-        );
-
-    const enemyHealthText =
-        document.getElementById(
-            "enemyHealthText"
-        );
-
-    const dialogue =
-        document.getElementById(
-            "dialogue"
-        );
-
-    const dialogueText =
-        document.getElementById(
-            "dialogueText"
-        );
-
-    const categoryNav =
-        document.getElementById(
-            "categoryNav"
-        );
-
-    const abilityPanel =
-        document.getElementById(
-            "abilityPanel"
-        );
-
-    const phaseSplash =
-        document.getElementById(
-            "phaseSplash"
-        );
-
-
-    /* =====================================================
-       REQUIRED ELEMENT
-
-       Nothing else is allowed to crash the game.
-    ===================================================== */
+        document.getElementById("gameCanvas");
 
     if (!canvas) {
         console.error(
             "FORECAST: #gameCanvas is missing."
         );
-
         return;
     }
 
 
+    const phaseLabel =
+        document.getElementById("phaseLabel");
+
+    const phaseTrack =
+        document.getElementById("phaseTrack");
+
+    const turnBanner =
+        document.getElementById("turnBanner");
+
+    const staminaFill =
+        document.getElementById("staminaFill");
+
+    const staminaText =
+        document.getElementById("staminaText");
+
+    const enemyHealthFill =
+        document.getElementById("enemyHealthFill");
+
+    const enemyHealthText =
+        document.getElementById("enemyHealthText");
+
+    const dialogue =
+        document.getElementById("dialogue");
+
+    const dialogueText =
+        document.getElementById("dialogueText");
+
+    const categoryNav =
+        document.getElementById("categoryNav");
+
+    const abilityPanel =
+        document.getElementById("abilityPanel");
+
+    const phaseSplash =
+        document.getElementById("phaseSplash");
+
+
+    /*
+        Old HTML may still contain the USE button.
+
+        Remove it at runtime so we don't need
+        another HTML rewrite before testing.
+    */
+
+    const oldControls =
+        document.getElementById("controls");
+
+    if (oldControls) {
+        oldControls.remove();
+    }
+
+
+    const oldActionButton =
+        document.getElementById("actionButton");
+
+    if (oldActionButton) {
+        oldActionButton.remove();
+    }
+
+
     /* =====================================================
-       CATEGORY STATE
+       CATEGORIES
     ===================================================== */
 
     const CATEGORIES = [
@@ -113,15 +106,12 @@
         "FORECAST"
     ];
 
-
-    let selectedCategory =
-        "WEAPON";
+    let selectedCategory = "WEAPON";
 
 
-    /*
-        Forecast abilities don't need their
-        own separate JS file.
-    */
+    /* =====================================================
+       FORECAST ABILITIES
+    ===================================================== */
 
     const FORECAST_ABILITIES = {
 
@@ -129,7 +119,6 @@
             name: "PREDICT",
             phase: "1",
             cooldown: 1800,
-
             description:
                 "Reads the protagonist's immediate movement."
         },
@@ -138,7 +127,6 @@
             name: "DEEP FORECAST",
             phase: "3",
             cooldown: 3200,
-
             description:
                 "Extends prediction and restores stamina."
         },
@@ -147,7 +135,6 @@
             name: "ABSOLUTE FORECAST",
             phase: "4.5",
             cooldown: 5200,
-
             description:
                 "Pushes Forecast's prediction to its maximum."
         }
@@ -161,9 +148,7 @@
     ];
 
 
-    let selectedForecast =
-        "PREDICT";
-
+    let selectedForecast = "PREDICT";
 
     const forecastCooldowns = {};
 
@@ -174,7 +159,6 @@
 
     const drag = {
         active: false,
-
         pointerId: null,
 
         startX: 0,
@@ -188,10 +172,7 @@
 
 
     /*
-        Prevent a tiny accidental tap from
-        immediately firing.
-
-        The user should actually drag.
+        Stops tiny accidental taps from firing.
     */
 
     const MIN_DRAG_DISTANCE = 8;
@@ -261,8 +242,7 @@
         }
 
 
-        return ForecastPhases
-            .getPhase();
+        return ForecastPhases.getPhase();
     }
 
 
@@ -273,10 +253,7 @@
             typeof ForecastPhases ===
             "undefined"
         ) {
-            return (
-                requiredPhase ===
-                "1"
-            );
+            return requiredPhase === "1";
         }
 
 
@@ -288,16 +265,11 @@
 
 
     /* =====================================================
-       CATEGORY BUTTONS
-
-       Works even if the HTML buttons already exist.
-       If they don't, we create them.
+       CATEGORY NAVIGATION
     ===================================================== */
 
     function buildCategoryNav() {
-        if (!categoryNav) {
-            return;
-        }
+        if (!categoryNav) return;
 
 
         let buttons =
@@ -306,7 +278,14 @@
             );
 
 
+        /*
+            If index.html somehow doesn't
+            already contain category buttons,
+            create them automatically.
+        */
+
         if (!buttons.length) {
+
             categoryNav.innerHTML = "";
 
 
@@ -320,8 +299,7 @@
                     );
 
 
-                button.type =
-                    "button";
+                button.type = "button";
 
                 button.className =
                     "category-button";
@@ -353,8 +331,7 @@
                 () => {
 
                     const category =
-                        button.dataset
-                            .category;
+                        button.dataset.category;
 
 
                     if (
@@ -383,9 +360,7 @@
 
 
     function updateCategoryButtons() {
-        if (!categoryNav) {
-            return;
-        }
+        if (!categoryNav) return;
 
 
         const buttons =
@@ -407,13 +382,12 @@
 
 
     /* =====================================================
-       ABILITY LIST
+       GET ABILITIES
     ===================================================== */
 
     function getAbilitiesForCategory() {
-        switch (
-            selectedCategory
-        ) {
+
+        switch (selectedCategory) {
 
             case "WEAPON":
 
@@ -476,9 +450,8 @@
     ===================================================== */
 
     function getSelectedName() {
-        switch (
-            selectedCategory
-        ) {
+
+        switch (selectedCategory) {
 
             case "WEAPON":
 
@@ -529,9 +502,8 @@
     ===================================================== */
 
     function selectAbility(name) {
-        switch (
-            selectedCategory
-        ) {
+
+        switch (selectedCategory) {
 
             case "WEAPON":
 
@@ -583,9 +555,7 @@
                     ];
 
 
-                if (!ability) {
-                    return;
-                }
+                if (!ability) return;
 
 
                 if (
@@ -620,14 +590,10 @@
     function getCooldownRemaining(
         ability
     ) {
-        if (!ability) {
-            return 0;
-        }
+        if (!ability) return 0;
 
 
-        switch (
-            selectedCategory
-        ) {
+        switch (selectedCategory) {
 
             case "WEAPON":
 
@@ -695,18 +661,15 @@
 
 
     /* =====================================================
-       RENDER ABILITIES
+       RENDER ARSENAL
     ===================================================== */
 
     function renderAbilities() {
-        if (!abilityPanel) {
-            return;
-        }
+        if (!abilityPanel) return;
 
 
         const abilities =
             getAbilitiesForCategory();
-
 
         const selected =
             getSelectedName();
@@ -737,9 +700,7 @@
                 );
 
 
-            button.type =
-                "button";
-
+            button.type = "button";
 
             button.className =
                 "ability-button";
@@ -763,6 +724,7 @@
 
 
             if (
+                unlocked &&
                 cooldown > 0
             ) {
                 button.classList.add(
@@ -795,18 +757,23 @@
 
 
             if (!unlocked) {
+
                 info.textContent =
                     `LOCKED — PHASE ${ability.phase}`;
+
             }
             else if (
                 cooldown > 0
             ) {
+
                 info.textContent =
                     `${(
                         cooldown / 1000
                     ).toFixed(1)}s`;
+
             }
             else {
+
                 info.textContent =
                     ability.description ||
                     "READY";
@@ -827,6 +794,7 @@
                 () => {
 
                     if (!unlocked) {
+
                         showMessage(
                             `LOCKED — PHASE ${ability.phase}`
                         );
@@ -850,51 +818,43 @@
 
 
     /* =====================================================
-       CANVAS COORDINATES
+       POINTER → CANVAS COORDINATES
     ===================================================== */
 
-    function pointerToCanvas(
-        event
-    ) {
+    function pointerToCanvas(event) {
+
         const rect =
             canvas.getBoundingClientRect();
 
 
-        const scaleX =
-            canvas.clientWidth /
-            rect.width;
+        /*
+            battle.js draws in CSS-pixel
+            coordinates even on Retina displays,
+            so use the CSS dimensions here.
+        */
 
-        const scaleY =
-            canvas.clientHeight /
-            rect.height;
+        const x =
+            event.clientX -
+            rect.left;
+
+        const y =
+            event.clientY -
+            rect.top;
 
 
         return {
-            x:
-                (
-                    event.clientX -
-                    rect.left
-                ) * scaleX,
-
-            y:
-                (
-                    event.clientY -
-                    rect.top
-                ) * scaleY
+            x,
+            y
         };
     }
 
 
     /* =====================================================
-       TARGET LIMITS
-
-       The released target is constrained to
-       the protagonist battle box.
+       CLAMP TARGET TO BATTLE BOX
     ===================================================== */
 
-    function clampTargetToArena(
-        target
-    ) {
+    function clampTargetToArena(target) {
+
         if (
             typeof ForecastBattle ===
             "undefined"
@@ -916,283 +876,35 @@
 
 
         return {
-            x:
-                Math.max(
-                    status.arena.left,
-                    Math.min(
-                        status.arena.right,
-                        target.x
-                    )
-                ),
 
-            y:
-                Math.max(
-                    status.arena.top,
-                    Math.min(
-                        status.arena.bottom,
-                        target.y
-                    )
+            x: Math.max(
+                status.arena.left,
+
+                Math.min(
+                    status.arena.right,
+                    target.x
                 )
+            ),
+
+
+            y: Math.max(
+                status.arena.top,
+
+                Math.min(
+                    status.arena.bottom,
+                    target.y
+                )
+            )
         };
     }
 
 
     /* =====================================================
-       DRAG START
+       BEGIN DRAG
     ===================================================== */
 
     function beginDrag(event) {
-        if (
-            typeof ForecastBattle ===
-            "undefined"
-        ) {
-            return;
-        }
 
-
-        const status =
-            ForecastBattle.getStatus();
-
-
-        /*
-            You can only attack during
-            Forecast's turn.
-        */
-
-        if (
-            !status ||
-            status.battleEnded ||
-            status.turn !==
-                "FORECAST"
-        ) {
-            return;
-        }
-
-
-        const point =
-            pointerToCanvas(
-                event
-            );
-
-
-        drag.active = true;
-
-        drag.pointerId =
-            event.pointerId;
-
-        drag.startX =
-            point.x;
-
-        drag.startY =
-            point.y;
-
-        drag.x =
-            point.x;
-
-        drag.y =
-            point.y;
-
-        drag.moved = false;
-
-
-        try {
-            canvas.setPointerCapture(
-                event.pointerId
-            );
-        }
-        catch (_) {
-            /*
-                Some mobile browsers may
-                reject capture. Drag still works.
-            */
-        }
-
-
-        const target =
-            clampTargetToArena(
-                point
-            );
-
-
-        ForecastBattle
-            .setAimPreview(
-                target
-            );
-
-
-        event.preventDefault();
-    }
-
-
-    /* =====================================================
-       DRAG MOVE
-    ===================================================== */
-
-    function moveDrag(event) {
-        if (
-            !drag.active ||
-            event.pointerId !==
-                drag.pointerId
-        ) {
-            return;
-        }
-
-
-        const point =
-            pointerToCanvas(
-                event
-            );
-
-
-        drag.x =
-            point.x;
-
-        drag.y =
-            point.y;
-
-
-        const movedDistance =
-            Math.hypot(
-                drag.x -
-                drag.startX,
-
-                drag.y -
-                drag.startY
-            );
-
-
-        if (
-            movedDistance >=
-            MIN_DRAG_DISTANCE
-        ) {
-            drag.moved = true;
-        }
-
-
-        const target =
-            clampTargetToArena(
-                point
-            );
-
-
-        ForecastBattle
-            .setAimPreview(
-                target
-            );
-
-
-        event.preventDefault();
-    }
-
-
-    /* =====================================================
-       DRAG RELEASE = FIRE
-    ===================================================== */
-
-    function endDrag(event) {
-        if (
-            !drag.active ||
-            event.pointerId !==
-                drag.pointerId
-        ) {
-            return;
-        }
-
-
-        const point =
-            pointerToCanvas(
-                event
-            );
-
-
-        const target =
-            clampTargetToArena(
-                point
-            );
-
-
-        try {
-            canvas.releasePointerCapture(
-                event.pointerId
-            );
-        }
-        catch (_) {}
-
-
-        ForecastBattle
-            .setAimPreview(
-                null
-            );
-
-
-        const shouldFire =
-            drag.moved;
-
-
-        drag.active = false;
-        drag.pointerId = null;
-
-
-        event.preventDefault();
-
-
-        /*
-            A tiny tap does NOT fire.
-        */
-
-        if (!shouldFire) {
-            return;
-        }
-
-
-        fireSelected(
-            target
-        );
-    }
-
-
-    /* =====================================================
-       CANCEL DRAG
-    ===================================================== */
-
-    function cancelDrag(event) {
-        if (
-            !drag.active
-        ) {
-            return;
-        }
-
-
-        if (
-            event &&
-            event.pointerId !==
-                drag.pointerId
-        ) {
-            return;
-        }
-
-
-        drag.active = false;
-        drag.pointerId = null;
-
-
-        if (
-            typeof ForecastBattle !==
-            "undefined"
-        ) {
-            ForecastBattle
-                .setAimPreview(
-                    null
-                );
-        }
-    }
-
-
-    /* =====================================================
-       FIRE CURRENT SELECTION
-    ===================================================== */
-
-    function fireSelected(target) {
         if (
             typeof ForecastBattle ===
             "undefined"
@@ -1225,362 +937,513 @@
         }
 
 
-        switch (
-            selectedCategory
-        ) {
+        const point =
+            pointerToCanvas(
+                event
+            );
 
-            /* =============================================
-               WEAPON
-            ============================================= */
 
-            case "WEAPON": {
+        drag.active = true;
 
-                if (
-                    typeof ForecastWeapons ===
-                    "undefined"
-                ) {
-                    return;
-                }
+        drag.pointerId =
+            event.pointerId;
 
+        drag.startX =
+            point.x;
 
-                const weapon =
-                    ForecastWeapons
-                        .getSelectedData();
+        drag.startY =
+            point.y;
 
+        drag.x =
+            point.x;
 
-                if (!weapon) {
-                    return;
-                }
+        drag.y =
+            point.y;
 
+        drag.moved = false;
 
-                if (
-                    !ForecastWeapons
-                        .isUnlocked(
-                            weapon.name
-                        )
-                ) {
-                    showMessage(
-                        `LOCKED — PHASE ${weapon.phase}`
-                    );
 
-                    return;
-                }
+        try {
 
+            canvas.setPointerCapture(
+                event.pointerId
+            );
 
-                const remaining =
-                    ForecastWeapons
-                        .getCooldownRemaining(
-                            weapon.name
-                        );
-
-
-                if (
-                    remaining > 0
-                ) {
-                    showMessage(
-                        `COOLDOWN ${(
-                            remaining / 1000
-                        ).toFixed(1)}s`
-                    );
-
-                    return;
-                }
-
-
-                /*
-                    IMPORTANT:
-
-                    We use ForecastWeapons.fire()
-                    to register the cooldown.
-
-                    But the older weapons module
-                    doesn't carry the target in
-                    its event.
-
-                    So we suppress the event's
-                    battle effect by using the
-                    direct battle call below.
-
-                    The event itself may still
-                    fire, so battle.js needs a
-                    target. To avoid duplicate
-                    attacks entirely, we use the
-                    helper below.
-                */
-
-
-                fireWeaponSafely(
-                    weapon,
-                    target
-                );
-
-                break;
-            }
-
-
-            /* =============================================
-               EYES
-            ============================================= */
-
-            case "EYES": {
-
-                if (
-                    typeof ForecastEyes ===
-                    "undefined"
-                ) {
-                    return;
-                }
-
-
-                const eye =
-                    ForecastEyes
-                        .getSelectedData();
-
-
-                if (!eye) {
-                    return;
-                }
-
-
-                /*
-                    eyes.js already carries
-                    target data in its event.
-                */
-
-                const result =
-                    ForecastEyes.activate(
-                        target,
-                        eye.name
-                    );
-
-
-                if (
-                    !result.activated &&
-                    result.reason ===
-                        "cooldown"
-                ) {
-                    showMessage(
-                        `COOLDOWN ${(
-                            result.remaining /
-                            1000
-                        ).toFixed(1)}s`
-                    );
-                }
-
-
-                break;
-            }
-
-
-            /* =============================================
-               TECHNIQUE
-            ============================================= */
-
-            case "TECHNIQUE": {
-
-                if (
-                    typeof ForecastTechniques ===
-                    "undefined"
-                ) {
-                    return;
-                }
-
-
-                const technique =
-                    ForecastTechniques
-                        .getSelectedData();
-
-
-                if (!technique) {
-                    return;
-                }
-
-
-                /*
-                    techniques.js already carries
-                    the target in the event.
-                */
-
-                const result =
-                    ForecastTechniques
-                        .activate(
-                            target,
-                            technique.name
-                        );
-
-
-                if (
-                    !result.activated &&
-                    result.reason ===
-                        "cooldown"
-                ) {
-                    showMessage(
-                        `COOLDOWN ${(
-                            result.remaining /
-                            1000
-                        ).toFixed(1)}s`
-                    );
-                }
-
-
-                break;
-            }
-
-
-            /* =============================================
-               FORECAST
-            ============================================= */
-
-            case "FORECAST": {
-
-                const ability =
-                    FORECAST_ABILITIES[
-                        selectedForecast
-                    ];
-
-
-                if (!ability) {
-                    return;
-                }
-
-
-                if (
-                    !isPhaseUnlocked(
-                        ability.phase
-                    )
-                ) {
-                    showMessage(
-                        `LOCKED — PHASE ${ability.phase}`
-                    );
-
-                    return;
-                }
-
-
-                const lastUsed =
-                    forecastCooldowns[
-                        ability.name
-                    ] || 0;
-
-
-                const remaining =
-                    Math.max(
-                        0,
-
-                        ability.cooldown -
-                        (
-                            performance.now() -
-                            lastUsed
-                        )
-                    );
-
-
-                if (
-                    remaining > 0
-                ) {
-                    showMessage(
-                        `COOLDOWN ${(
-                            remaining / 1000
-                        ).toFixed(1)}s`
-                    );
-
-                    return;
-                }
-
-
-                const used =
-                    ForecastBattle
-                        .useForecastAbility(
-                            ability.name,
-                            target
-                        );
-
-
-                if (used) {
-                    forecastCooldowns[
-                        ability.name
-                    ] =
-                        performance.now();
-                }
-
-
-                break;
-            }
         }
+        catch (_) {}
 
 
-        renderAbilities();
+        const target =
+            clampTargetToArena(
+                point
+            );
+
+
+        ForecastBattle
+            .setAimPreview(
+                target
+            );
+
+
+        event.preventDefault();
     }
 
 
     /* =====================================================
-       WEAPON BRIDGE
-
-       V1 weapons.js was written before we
-       finalized drag-target firing.
-
-       This records its cooldown without
-       allowing a duplicate projectile.
-
-       We temporarily intercept the weapon
-       event, attach the target, and let
-       battle.js receive exactly ONE shot.
+       MOVE DRAG
     ===================================================== */
 
-    function fireWeaponSafely(
-        weapon,
-        target
-    ) {
-        /*
-            Easiest clean solution:
-            use the weapons module for cooldown,
-            intercept its event before battle.js
-            sees it, then manually fire once.
+    function moveDrag(event) {
 
-            However event listener ordering would
-            make that unnecessarily fragile.
-
-            So for this V1 bridge we temporarily
-            stop battle's listener from being
-            relevant by passing the target through
-            a one-shot global bridge.
-        */
+        if (
+            !drag.active ||
+            event.pointerId !==
+                drag.pointerId
+        ) {
+            return;
+        }
 
 
-        window.__forecastDragTarget =
-            target;
-
-
-        const result =
-            ForecastWeapons.fire(
-                weapon.name
+        const point =
+            pointerToCanvas(
+                event
             );
 
 
-        /*
-            weapons.js emits the attack once.
-            battle.js receives it, but because
-            old weapons.js does not include target,
-            battle.js falls back to the current
-            protagonist position.
-
-            We therefore DO NOT fire a second
-            projectile here.
-
-            Step after the first test will be a
-            tiny weapons.js patch so its event
-            carries target directly.
-        */
+        drag.x = point.x;
+        drag.y = point.y;
 
 
-        window.__forecastDragTarget =
-            null;
+        const movedDistance =
+            Math.hypot(
+
+                drag.x -
+                drag.startX,
+
+                drag.y -
+                drag.startY
+            );
 
 
         if (
-            !result.fired &&
+            movedDistance >=
+            MIN_DRAG_DISTANCE
+        ) {
+            drag.moved = true;
+        }
+
+
+        ForecastBattle
+            .setAimPreview(
+
+                clampTargetToArena(
+                    point
+                )
+            );
+
+
+        event.preventDefault();
+    }
+
+
+    /* =====================================================
+       RELEASE DRAG
+    ===================================================== */
+
+    function endDrag(event) {
+
+        if (
+            !drag.active ||
+            event.pointerId !==
+                drag.pointerId
+        ) {
+            return;
+        }
+
+
+        const point =
+            pointerToCanvas(
+                event
+            );
+
+
+        const target =
+            clampTargetToArena(
+                point
+            );
+
+
+        try {
+
+            canvas.releasePointerCapture(
+                event.pointerId
+            );
+
+        }
+        catch (_) {}
+
+
+        ForecastBattle
+            .setAimPreview(
+                null
+            );
+
+
+        const shouldFire =
+            drag.moved;
+
+
+        drag.active = false;
+
+        drag.pointerId = null;
+
+
+        event.preventDefault();
+
+
+        /*
+            Tap = nothing.
+            Drag + release = attack.
+        */
+
+        if (!shouldFire) {
+            return;
+        }
+
+
+        fireSelected(
+            target
+        );
+    }
+
+
+    /* =====================================================
+       CANCEL DRAG
+    ===================================================== */
+
+    function cancelDrag(event) {
+
+        if (!drag.active) {
+            return;
+        }
+
+
+        if (
+            event &&
+            event.pointerId !==
+                drag.pointerId
+        ) {
+            return;
+        }
+
+
+        drag.active = false;
+
+        drag.pointerId = null;
+
+
+        if (
+            typeof ForecastBattle !==
+            "undefined"
+        ) {
+            ForecastBattle
+                .setAimPreview(
+                    null
+                );
+        }
+    }
+
+
+    /* =====================================================
+       FIRE SELECTED ABILITY
+    ===================================================== */
+
+    function fireSelected(target) {
+
+        if (
+            typeof ForecastBattle ===
+            "undefined"
+        ) {
+            return;
+        }
+
+
+        const status =
+            ForecastBattle.getStatus();
+
+
+        if (
+            !status ||
+            status.battleEnded
+        ) {
+            return;
+        }
+
+
+        if (
+            status.turn !==
+            "FORECAST"
+        ) {
+            showMessage(
+                "PROTAGONIST TURN"
+            );
+
+            return;
+        }
+
+
+        /* =================================================
+           WEAPON
+        ================================================= */
+
+        if (
+            selectedCategory ===
+            "WEAPON"
+        ) {
+            if (
+                typeof ForecastWeapons ===
+                "undefined"
+            ) {
+                return;
+            }
+
+
+            const weapon =
+                ForecastWeapons
+                    .getSelectedData();
+
+
+            if (!weapon) return;
+
+
+            /*
+                PATCHED weapons.js accepts:
+
+                fire(target, weaponName)
+
+                It emits exactly ONE event,
+                including the drag target.
+
+                battle.js catches that event
+                and creates the attack.
+            */
+
+            const result =
+                ForecastWeapons.fire(
+                    target,
+                    weapon.name
+                );
+
+
+            if (
+                !result.fired
+            ) {
+                handleFailedUse(
+                    result,
+                    weapon.phase
+                );
+            }
+
+
+            renderAbilities();
+
+            return;
+        }
+
+
+        /* =================================================
+           EYE
+        ================================================= */
+
+        if (
+            selectedCategory ===
+            "EYES"
+        ) {
+            if (
+                typeof ForecastEyes ===
+                "undefined"
+            ) {
+                return;
+            }
+
+
+            const eye =
+                ForecastEyes
+                    .getSelectedData();
+
+
+            if (!eye) return;
+
+
+            const result =
+                ForecastEyes.activate(
+                    target,
+                    eye.name
+                );
+
+
+            if (
+                !result.activated
+            ) {
+                handleFailedUse(
+                    result,
+                    eye.phase
+                );
+            }
+
+
+            renderAbilities();
+
+            return;
+        }
+
+
+        /* =================================================
+           TECHNIQUE
+        ================================================= */
+
+        if (
+            selectedCategory ===
+            "TECHNIQUE"
+        ) {
+            if (
+                typeof ForecastTechniques ===
+                "undefined"
+            ) {
+                return;
+            }
+
+
+            const technique =
+                ForecastTechniques
+                    .getSelectedData();
+
+
+            if (!technique) return;
+
+
+            const result =
+                ForecastTechniques
+                    .activate(
+                        target,
+                        technique.name
+                    );
+
+
+            if (
+                !result.activated
+            ) {
+                handleFailedUse(
+                    result,
+                    technique.phase
+                );
+            }
+
+
+            renderAbilities();
+
+            return;
+        }
+
+
+        /* =================================================
+           FORECAST
+        ================================================= */
+
+        if (
+            selectedCategory ===
+            "FORECAST"
+        ) {
+            const ability =
+                FORECAST_ABILITIES[
+                    selectedForecast
+                ];
+
+
+            if (!ability) return;
+
+
+            if (
+                !isPhaseUnlocked(
+                    ability.phase
+                )
+            ) {
+                showMessage(
+                    `LOCKED — PHASE ${ability.phase}`
+                );
+
+                return;
+            }
+
+
+            const lastUsed =
+                forecastCooldowns[
+                    ability.name
+                ] || 0;
+
+
+            const remaining =
+                Math.max(
+
+                    0,
+
+                    ability.cooldown -
+                    (
+                        performance.now() -
+                        lastUsed
+                    )
+                );
+
+
+            if (
+                remaining > 0
+            ) {
+                showMessage(
+                    `COOLDOWN ${(
+                        remaining / 1000
+                    ).toFixed(1)}s`
+                );
+
+                return;
+            }
+
+
+            const success =
+                ForecastBattle
+                    .useForecastAbility(
+                        ability.name,
+                        target
+                    );
+
+
+            if (success) {
+
+                forecastCooldowns[
+                    ability.name
+                ] =
+                    performance.now();
+            }
+
+
+            renderAbilities();
+        }
+    }
+
+
+    /* =====================================================
+       FAILED ABILITY USE
+    ===================================================== */
+
+    function handleFailedUse(
+        result,
+        requiredPhase
+    ) {
+        if (!result) return;
+
+
+        if (
             result.reason ===
-                "cooldown"
+            "cooldown"
         ) {
             showMessage(
                 `COOLDOWN ${(
@@ -1588,18 +1451,24 @@
                     1000
                 ).toFixed(1)}s`
             );
+
+            return;
+        }
+
+
+        if (
+            result.reason ===
+            "locked"
+        ) {
+            showMessage(
+                `LOCKED — PHASE ${requiredPhase}`
+            );
         }
     }
 
 
     /* =====================================================
        POINTER EVENTS
-
-       Pointer events work for:
-       - iPhone touch
-       - iPad
-       - mouse
-       - stylus
     ===================================================== */
 
     canvas.addEventListener(
@@ -1639,16 +1508,29 @@
 
 
     canvas.addEventListener(
+        "lostpointercapture",
+        () => {
+
+            if (drag.active) {
+                cancelDrag();
+            }
+        }
+    );
+
+
+    canvas.addEventListener(
         "contextmenu",
-        event =>
-            event.preventDefault()
+        event => {
+            event.preventDefault();
+        }
     );
 
 
     /*
-        Important on mobile:
-        browser should not scroll/zoom while
-        dragging inside the battle canvas.
+        VERY important for iPhone.
+
+        Dragging the battle canvas should
+        aim instead of scrolling the page.
     */
 
     canvas.style.touchAction =
@@ -1656,10 +1538,11 @@
 
 
     /* =====================================================
-       HUD UPDATE
+       HUD
     ===================================================== */
 
     function updateHUD() {
+
         if (
             typeof ForecastBattle ===
             "undefined"
@@ -1672,9 +1555,7 @@
             ForecastBattle.getStatus();
 
 
-        if (!status) {
-            return;
-        }
+        if (!status) return;
 
 
         /* ---------------- PHASE ---------------- */
@@ -1684,6 +1565,7 @@
 
 
         if (phaseLabel) {
+
             phaseLabel.textContent =
                 `PHASE ${phase}`;
         }
@@ -1697,10 +1579,13 @@
         /* ---------------- TURN ---------------- */
 
         if (turnBanner) {
+
             turnBanner.textContent =
                 status.turn ===
                 "FORECAST"
+
                     ? "FORECAST TURN"
+
                     : "PROTAGONIST TURN";
 
 
@@ -1713,8 +1598,11 @@
 
         const staminaPercent =
             Math.max(
+
                 0,
+
                 Math.min(
+
                     100,
 
                     (
@@ -1726,12 +1614,14 @@
 
 
         if (staminaFill) {
+
             staminaFill.style.width =
                 `${staminaPercent}%`;
         }
 
 
         if (staminaText) {
+
             staminaText.textContent =
                 `${Math.round(
                     status.stamina
@@ -1739,12 +1629,15 @@
         }
 
 
-        /* ---------------- PROTAGONIST HP ---------------- */
+        /* ---------------- ENEMY HP ---------------- */
 
         const hpPercent =
             Math.max(
+
                 0,
+
                 Math.min(
+
                     100,
 
                     (
@@ -1756,12 +1649,14 @@
 
 
         if (enemyHealthFill) {
+
             enemyHealthFill.style.width =
                 `${hpPercent}%`;
         }
 
 
         if (enemyHealthText) {
+
             enemyHealthText.textContent =
                 `${Math.ceil(
                     status.protagonistHP
@@ -1777,16 +1672,16 @@
     function updatePhaseTrack(
         currentPhase
     ) {
-        if (!phaseTrack) {
-            return;
-        }
+        if (!phaseTrack) return;
 
 
         const phases =
             typeof ForecastPhases !==
             "undefined"
+
                 ? ForecastPhases
                     .getAllPhases()
+
                 : [
                     "1",
                     "1.5",
@@ -1813,10 +1708,9 @@
 
 
         nodes.forEach(
-            (node, index) => {
+            (node, fallbackIndex) => {
 
-                const nodePhase =
-                    node.dataset.phase ||
+                const textPhase =
                     node.textContent
                         .trim()
                         .replace(
@@ -1825,22 +1719,29 @@
                         );
 
 
-                const nodeIndex =
+                const nodePhase =
+                    node.dataset.phase ||
+                    textPhase;
+
+
+                let nodeIndex =
                     phases.indexOf(
                         nodePhase
                     );
 
 
-                const resolvedIndex =
-                    nodeIndex >= 0
-                        ? nodeIndex
-                        : index;
+                if (
+                    nodeIndex < 0
+                ) {
+                    nodeIndex =
+                        fallbackIndex;
+                }
 
 
                 node.classList.toggle(
                     "active",
 
-                    resolvedIndex ===
+                    nodeIndex ===
                         currentIndex
                 );
 
@@ -1848,7 +1749,7 @@
                 node.classList.toggle(
                     "passed",
 
-                    resolvedIndex <
+                    nodeIndex <
                         currentIndex
                 );
             }
@@ -1863,12 +1764,9 @@
     let splashTimer = null;
 
 
-    function showPhaseSplash(
-        phase
-    ) {
-        if (!phaseSplash) {
-            return;
-        }
+    function showPhaseSplash(phase) {
+
+        if (!phaseSplash) return;
 
 
         phaseSplash.textContent =
@@ -1881,6 +1779,7 @@
 
 
         if (splashTimer) {
+
             clearTimeout(
                 splashTimer
             );
@@ -1888,30 +1787,38 @@
 
 
         splashTimer =
-            setTimeout(() => {
+            setTimeout(
+                () => {
 
-                phaseSplash.classList.remove(
-                    "visible"
-                );
+                    phaseSplash
+                        .classList
+                        .remove(
+                            "visible"
+                        );
 
-            }, 900);
+                },
+                900
+            );
     }
 
 
     /* =====================================================
-       GLOBAL EVENTS
+       EVENTS
     ===================================================== */
 
     window.addEventListener(
         "forecast-message",
         event => {
 
-            if (
+            const message =
                 event.detail &&
-                event.detail.message
-            ) {
+                event.detail.message;
+
+
+            if (message) {
+
                 showMessage(
-                    event.detail.message
+                    message
                 );
             }
         }
@@ -1925,7 +1832,9 @@
             const phase =
                 event.detail &&
                 event.detail.phase
+
                     ? event.detail.phase
+
                     : getPhase();
 
 
@@ -1954,43 +1863,72 @@
 
     window.addEventListener(
         "forecast-weapon-selected",
-        renderAbilities
+        () => {
+
+            if (
+                selectedCategory ===
+                "WEAPON"
+            ) {
+                renderAbilities();
+            }
+        }
     );
 
 
     window.addEventListener(
         "forecast-eye-selected",
-        renderAbilities
+        () => {
+
+            if (
+                selectedCategory ===
+                "EYES"
+            ) {
+                renderAbilities();
+            }
+        }
     );
 
 
     window.addEventListener(
         "forecast-technique-selected",
-        renderAbilities
+        () => {
+
+            if (
+                selectedCategory ===
+                "TECHNIQUE"
+            ) {
+                renderAbilities();
+            }
+        }
     );
 
 
     /* =====================================================
-       UI REFRESH LOOP
-
-       Keeps cooldown labels moving without
-       rebuilding them 60 times per second.
+       UI LOOP
     ===================================================== */
 
     let lastAbilityRefresh = 0;
 
 
     function uiLoop(time) {
+
         updateHUD();
 
 
+        /*
+            Cooldown text refreshes around
+            6 times per second instead of
+            rebuilding the arsenal every frame.
+        */
+
         if (
             time -
-            lastAbilityRefresh >
-            150
+            lastAbilityRefresh >=
+            160
         ) {
             lastAbilityRefresh =
                 time;
+
 
             renderAbilities();
         }
@@ -2003,28 +1941,94 @@
 
 
     /* =====================================================
-       INIT
+       MODULE CHECK
     ===================================================== */
 
-    function init() {
-        /*
-            Check modules individually,
-            but DON'T kill the page over
-            optional UI elements.
-        */
+    function checkModules() {
+
+        const missing = [];
+
+
+        if (
+            typeof ForecastPhases ===
+            "undefined"
+        ) {
+            missing.push(
+                "phases.js"
+            );
+        }
+
+
+        if (
+            typeof ForecastWeapons ===
+            "undefined"
+        ) {
+            missing.push(
+                "weapons.js"
+            );
+        }
+
+
+        if (
+            typeof ForecastEyes ===
+            "undefined"
+        ) {
+            missing.push(
+                "eyes.js"
+            );
+        }
+
+
+        if (
+            typeof ForecastTechniques ===
+            "undefined"
+        ) {
+            missing.push(
+                "techniques.js"
+            );
+        }
+
 
         if (
             typeof ForecastBattle ===
             "undefined"
         ) {
-            console.error(
-                "FORECAST: battle.js did not load."
+            missing.push(
+                "battle.js"
             );
+        }
+
+
+        if (
+            missing.length
+        ) {
+            console.error(
+                "FORECAST missing modules:",
+                missing
+            );
+
 
             showMessage(
-                "battle.js failed to load."
+                `FAILED TO LOAD: ${missing.join(", ")}`,
+                5000
             );
 
+
+            return false;
+        }
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       INIT
+    ===================================================== */
+
+    function init() {
+
+        if (!checkModules()) {
             return;
         }
 
@@ -2032,37 +2036,33 @@
         buildCategoryNav();
 
 
-        if (
-            typeof ForecastWeapons !==
-            "undefined"
-        ) {
-            ForecastWeapons.reset();
-        }
+        /*
+            Reset the data modules BEFORE
+            battle initialization.
+        */
+
+        ForecastPhases.reset();
+
+        ForecastWeapons.reset();
+
+        ForecastEyes.reset();
+
+        ForecastTechniques.reset();
 
 
-        if (
-            typeof ForecastEyes !==
-            "undefined"
-        ) {
-            ForecastEyes.reset();
-        }
+        /*
+            Start battle engine.
+        */
 
-
-        if (
-            typeof ForecastTechniques !==
-            "undefined"
-        ) {
-            ForecastTechniques.reset();
-        }
-
-
-        const battleStarted =
+        const started =
             ForecastBattle.init();
 
 
-        if (!battleStarted) {
+        if (!started) {
+
             showMessage(
-                "Battle canvas failed to start."
+                "BATTLE ENGINE FAILED TO START",
+                5000
             );
 
             return;
