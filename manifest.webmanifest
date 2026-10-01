@@ -1,9 +1,17 @@
 {
+  "id": "./",
   "name": "FORECAST!SANS - Same End Anyway",
   "short_name": "FORECAST!SANS",
-  "start_url": "./",
+  "description": "FORECAST!SANS boss battle game.",
+  "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
   "background_color": "#080808",
-  "theme_color": "#080808"
+  "theme_color": "#080808",
+  "prefer_related_applications": false,
+  "icons": [
+    {"src":"./forecast-spritesheet.png","sizes":"1158x436","type":"image/png","purpose":"any"}
+  ]
 }
