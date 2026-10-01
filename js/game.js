@@ -2136,13 +2136,26 @@
         const shake=document.getElementById("menuShake");
         let gameStarted=false;
 
+        const menuButtons=[start,cont,settings].filter(Boolean);
+        let menuIndex=0;
+        function focusMenu(index){
+            const usable=menuButtons.filter(button=>!button.disabled);
+            if(!usable.length)return;
+            menuIndex=(index+usable.length)%usable.length;
+            menuButtons.forEach(button=>button.classList.remove("menu-focus"));
+            usable[menuIndex].classList.add("menu-focus");
+            usable[menuIndex].focus({preventScroll:true});
+        }
         function beginGame(){
             if(gameStarted)return;
             gameStarted=true;
-            if(menu)menu.hidden=true;
-            if(game)game.classList.remove("game-hidden");
+            if(menu)menu.classList.add("menu-starting");
             localStorage.setItem("forecast-save","1");
-            startBattle();
+            setTimeout(()=>{
+                if(menu)menu.hidden=true;
+                if(game)game.classList.remove("game-hidden");
+                startBattle();
+            },300);
         }
         if(start)start.addEventListener("click",beginGame);
         if(cont){
@@ -2155,6 +2168,14 @@
         if(shake)shake.addEventListener("change",()=>localStorage.setItem("forecast-shake",shake.checked?"1":"0"));
         if(sound&&localStorage.getItem("forecast-sound")==="0")sound.checked=false;
         if(shake&&localStorage.getItem("forecast-shake")==="0")shake.checked=false;
+        menuButtons.forEach(button=>button.addEventListener("pointerenter",()=>{if(!button.disabled){menuButtons.forEach(b=>b.classList.remove("menu-focus"));button.classList.add("menu-focus");}}));
+        document.addEventListener("keydown",event=>{
+            if(!menu||menu.hidden||!settingsPanel.hidden)return;
+            if(event.key==="ArrowDown"){event.preventDefault();focusMenu(menuIndex+1);}
+            if(event.key==="ArrowUp"){event.preventDefault();focusMenu(menuIndex-1);}
+            if(event.key==="Enter"){event.preventDefault();const usable=menuButtons.filter(button=>!button.disabled);if(usable[menuIndex])usable[menuIndex].click();}
+        });
+        focusMenu(0);
     }
 
     function startBattle() {
