@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -10,21 +12,39 @@
 
     <meta name="theme-color" content="#050505">
 
-    <title>FORECAST!SANS — Same End Anyway</title>
+    <title>
+        FORECAST!SANS — Same End Anyway
+    </title>
 
-    <link rel="stylesheet" href="./css/game.css">
+    <link
+        rel="stylesheet"
+        href="./css/game.css"
+    >
+
 </head>
+
 
 <body>
 
 <main id="game">
 
-    <!-- ACTUAL BATTLE -->
+
+    <!-- =====================================
+         BATTLEFIELD
+    ====================================== -->
+
     <canvas id="gameCanvas"></canvas>
 
 
-    <!-- TOP HUD -->
+
+    <!-- =====================================
+         TOP HUD
+    ====================================== -->
+
     <header id="hud">
+
+
+        <!-- FORECAST -->
 
         <section id="forecastHUD">
 
@@ -36,22 +56,52 @@
                 PHASE 1
             </div>
 
+
             <div id="phaseTrack">
 
-                <span class="phase-node active">1</span>
-                <span class="phase-node">1.5</span>
-                <span class="phase-node">2</span>
-                <span class="phase-node">2.5</span>
-                <span class="phase-node">3</span>
-                <span class="phase-node">3.5</span>
-                <span class="phase-node">4</span>
-                <span class="phase-node">4.5</span>
-                <span class="phase-node">5</span>
+                <span class="phase-node active">
+                    1
+                </span>
+
+                <span class="phase-node">
+                    1.5
+                </span>
+
+                <span class="phase-node">
+                    2
+                </span>
+
+                <span class="phase-node">
+                    2.5
+                </span>
+
+                <span class="phase-node">
+                    3
+                </span>
+
+                <span class="phase-node">
+                    3.5
+                </span>
+
+                <span class="phase-node">
+                    4
+                </span>
+
+                <span class="phase-node">
+                    4.5
+                </span>
+
+                <span class="phase-node">
+                    5
+                </span>
 
             </div>
 
         </section>
 
+
+
+        <!-- PROTAGONIST -->
 
         <section id="enemyHUD">
 
@@ -59,9 +109,13 @@
                 PROTAGONIST
             </div>
 
+
             <div id="enemyHPBar">
+
                 <div id="enemyHPFill"></div>
+
             </div>
+
 
             <div id="enemyHPText">
                 100 / 100
@@ -69,16 +123,25 @@
 
         </section>
 
+
     </header>
 
 
-    <!-- TURN DISPLAY -->
+
+    <!-- =====================================
+         TURN
+    ====================================== -->
+
     <div id="turnBanner">
         FORECAST TURN
     </div>
 
 
-    <!-- PHASE CHANGE -->
+
+    <!-- =====================================
+         PHASE CHANGE
+    ====================================== -->
+
     <section id="phaseSplash">
 
         <div id="phaseSplashTop">
@@ -92,10 +155,50 @@
     </section>
 
 
-    <!-- DIALOGUE -->
+
+    <!-- =====================================
+         STAMINA
+    ====================================== -->
+
+    <section id="staminaHUD">
+
+        <div id="staminaHeader">
+
+            <span>
+                STAMINA
+            </span>
+
+            <span id="staminaText">
+                100 / 100
+            </span>
+
+        </div>
+
+
+        <div id="staminaBar">
+
+            <div id="staminaFill"></div>
+
+        </div>
+
+
+        <div id="dodgeStatus">
+            AUTO-DODGE READY
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================
+         DIALOGUE
+    ====================================== -->
+
     <section id="dialogueBox">
 
-        <span id="dialogueStar">*</span>
+        <span id="dialogueStar">
+            *
+        </span>
 
         <span id="dialogueText">
             Another possibility enters your sight.
@@ -104,7 +207,11 @@
     </section>
 
 
-    <!-- ABILITY SELECTOR -->
+
+    <!-- =====================================
+         ABILITY SELECTOR
+    ====================================== -->
+
     <section id="abilityPanel">
 
         <div id="abilityHeader">
@@ -116,8 +223,13 @@
     </section>
 
 
-    <!-- FOUR MAIN CATEGORIES -->
+
+    <!-- =====================================
+         MAIN CATEGORIES
+    ====================================== -->
+
     <nav id="categoryMenu">
+
 
         <button
             class="category-button active"
@@ -126,12 +238,14 @@
             WEAPON
         </button>
 
+
         <button
             class="category-button"
             data-category="eyes"
         >
             EYES
         </button>
+
 
         <button
             class="category-button"
@@ -140,6 +254,7 @@
             TECHNIQUE
         </button>
 
+
         <button
             class="category-button"
             data-category="forecast"
@@ -147,47 +262,30 @@
             FORECAST
         </button>
 
+
     </nav>
 
 
-    <!-- MOBILE CONTROLS -->
+
+    <!-- =====================================
+         ACTION
+    ====================================== -->
+
     <section id="controls">
 
-        <div id="dpad">
 
-            <button
-                id="upButton"
-                class="move-button"
-                aria-label="Move up"
-            >
-                ▲
-            </button>
+        <div id="combatStatus">
 
-            <button
-                id="leftButton"
-                class="move-button"
-                aria-label="Move left"
-            >
-                ◀
-            </button>
+            <div id="combatStatusTitle">
+                COMBAT MODE
+            </div>
 
-            <button
-                id="downButton"
-                class="move-button"
-                aria-label="Move down"
-            >
-                ▼
-            </button>
-
-            <button
-                id="rightButton"
-                class="move-button"
-                aria-label="Move right"
-            >
-                ▶
-            </button>
+            <div id="combatStatusText">
+                ATTACK
+            </div>
 
         </div>
+
 
 
         <div id="actionArea">
@@ -196,58 +294,98 @@
                 GLOCK
             </div>
 
+
             <button id="actionButton">
                 ATTACK
             </button>
 
         </div>
 
+
     </section>
 
 
-    <!-- DEVELOPMENT ERROR BOX
 
-         If one of our JS files breaks,
-         we'll display the error here instead
-         of getting another mysterious blank page.
-    -->
+    <!-- =====================================
+         ERROR DISPLAY
+    ====================================== -->
+
     <pre id="errorBox"></pre>
+
 
 </main>
 
 
-<!--
-    IMPORTANT:
-    These paths now EXACTLY match the repo:
-    /js/file.js
--->
+
+<!-- =========================================
+     GAME MODULES
+
+     LOAD ORDER MATTERS.
+========================================== -->
 
 <script src="./js/phases.js"></script>
+
 <script src="./js/weapons.js"></script>
+
 <script src="./js/eyes.js"></script>
+
 <script src="./js/techniques.js"></script>
+
 <script src="./js/battle.js"></script>
+
 <script src="./js/game.js"></script>
 
 
-<!-- Show JS errors directly on iPhone -->
+
+<!-- =========================================
+     MOBILE ERROR REPORTER
+========================================== -->
+
 <script>
-    window.addEventListener("error", function (event) {
-        const box = document.getElementById("errorBox");
 
-        if (!box) return;
+    window.addEventListener(
+        "error",
+        function (event) {
 
-        box.style.display = "block";
+            const box =
+                document.getElementById(
+                    "errorBox"
+                );
 
-        box.textContent =
-            "GAME ERROR\n\n" +
-            event.message +
-            "\n\n" +
-            (event.filename || "") +
-            ":" +
-            (event.lineno || "");
-    });
+
+            if (!box) {
+                return;
+            }
+
+
+            box.style.display =
+                "block";
+
+
+            box.textContent =
+                "GAME ERROR\n\n" +
+
+                event.message +
+
+                "\n\n" +
+
+                (
+                    event.filename ||
+                    ""
+                ) +
+
+                ":" +
+
+                (
+                    event.lineno ||
+                    ""
+                );
+        }
+    );
+
 </script>
 
+
 </body>
+
 </html>
