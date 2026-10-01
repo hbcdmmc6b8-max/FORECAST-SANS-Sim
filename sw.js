@@ -1,4 +1,4 @@
-const CACHE = "forecast-sans-v1";
+const CACHE = "forecast-sans-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -21,6 +21,12 @@ self.addEventListener("install", function (event) {
       return cache.addAll(ASSETS);
     })
   );
+});
+
+self.addEventListener("activate", function (event) {
+  event.waitUntil(caches.keys().then(function (keys) {
+    return Promise.all(keys.filter(function (key) { return key !== CACHE; }).map(function (key) { return caches.delete(key); }));
+  }).then(function () { return self.clients.claim(); }));
 });
 
 self.addEventListener("fetch", function (event) {
