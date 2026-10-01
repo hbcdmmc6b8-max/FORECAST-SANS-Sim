@@ -1,31 +1,30 @@
-/* ==========================================
-   FORECAST!SANS SIM — V0.2
-   Main Battle UI
-========================================== */
+/* =========================================
+   FORECAST!SANS — SAME END ANYWAY
+   V0.3 UI
+========================================= */
 
 * {
     box-sizing: border-box;
-    image-rendering: pixelated;
     -webkit-tap-highlight-color: transparent;
-    touch-action: none;
 }
 
 :root {
-    --black: #000;
-    --panel: #080808;
-    --panel-light: #111;
+    --black: #030303;
+    --panel: #090909;
+    --panel2: #111111;
     --white: #f5f5f5;
-    --gray: #777;
-    --dark-gray: #333;
-    --red: #ff2020;
-    --deep-red: #6b0000;
+    --gray: #777777;
+    --dark-gray: #2b2b2b;
+    --red: #ff2424;
+    --deep-red: #650000;
 }
 
 html,
 body {
-    margin: 0;
     width: 100%;
     height: 100%;
+    margin: 0;
+
     overflow: hidden;
 
     background: var(--black);
@@ -33,115 +32,142 @@ body {
 
     font-family:
         "Courier New",
-        Courier,
         monospace;
 
+    overscroll-behavior: none;
     user-select: none;
 }
 
+button {
+    font: inherit;
+}
 
-/* ==========================================
+
+/* =========================================
    GAME
-========================================== */
+========================================= */
 
 #game {
-    position: relative;
+    position: fixed;
+    inset: 0;
 
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
 
     overflow: hidden;
 
     background:
         radial-gradient(
-            circle at 50% 32%,
-            #210000 0%,
-            #090000 24%,
-            #020202 55%,
-            #000 100%
+            circle at 50% 35%,
+            #1b0000 0%,
+            #080000 25%,
+            #030303 60%,
+            #000000 100%
         );
 }
 
-#game::before {
+
+/* subtle scanlines */
+
+#game::after {
     content: "";
 
     position: absolute;
     inset: 0;
+
+    z-index: 100;
 
     pointer-events: none;
 
     background:
         repeating-linear-gradient(
             0deg,
-            rgba(255,255,255,.018) 0px,
-            rgba(255,255,255,.018) 1px,
-            transparent 1px,
-            transparent 4px
+            transparent 0px,
+            transparent 3px,
+            rgba(255,255,255,0.018) 4px
         );
-
-    z-index: 20;
 }
+
+
+/* =========================================
+   CANVAS
+========================================= */
 
 #gameCanvas {
     position: absolute;
-
     inset: 0;
-
-    display: block;
 
     width: 100%;
     height: 100%;
+
+    display: block;
+
+    z-index: 1;
+
+    touch-action: none;
 }
 
 
-/* ==========================================
+/* =========================================
    HUD
-========================================== */
+========================================= */
 
 #hud {
     position: absolute;
 
-    top: max(12px, env(safe-area-inset-top));
-    left: 18px;
-    right: 18px;
+    top: max(
+        12px,
+        env(safe-area-inset-top)
+    );
+
+    left: 14px;
+    right: 14px;
+
+    z-index: 10;
 
     display: flex;
     justify-content: space-between;
 
-    gap: 24px;
+    gap: 20px;
 
     pointer-events: none;
-
-    z-index: 10;
 }
 
-.hud-side {
-    width: min(43vw, 360px);
+#forecastHUD,
+#enemyHUD {
+    width: min(44%, 350px);
+}
+
+#enemyHUD {
+    text-align: right;
 }
 
 .hud-name {
-    font-size: 15px;
-    font-weight: 900;
+    font-size: clamp(
+        10px,
+        2.8vw,
+        15px
+    );
 
+    font-weight: 900;
     letter-spacing: 1px;
 
     text-shadow:
-        2px 2px #000,
-        -1px -1px #000;
+        2px 2px 0 #000;
 }
 
 
-/* ==========================================
-   FORECAST PHASE HUD
-========================================== */
+/* =========================================
+   PHASE TRACK
+========================================= */
 
 #phaseLabel {
     margin-top: 5px;
 
     color: var(--red);
 
-    font-size: 12px;
-    font-weight: bold;
+    font-size: 11px;
+    font-weight: 900;
 
     letter-spacing: 2px;
 }
@@ -149,9 +175,7 @@ body {
 #phaseTrack {
     display: flex;
 
-    width: 100%;
-
-    gap: 3px;
+    gap: 2px;
 
     margin-top: 6px;
 }
@@ -161,27 +185,15 @@ body {
 
     min-width: 0;
 
-    padding: 4px 1px;
+    padding: 3px 1px;
 
-    border: 1px solid #444;
+    border: 1px solid #333;
 
-    color: #555;
     background: #050505;
+    color: #555;
 
-    font-size: 8px;
-    font-weight: bold;
-
+    font-size: 7px;
     text-align: center;
-}
-
-.phase-node.active {
-    color: #000;
-
-    border-color: var(--red);
-    background: var(--red);
-
-    box-shadow:
-        0 0 8px rgba(255, 0, 0, .8);
 }
 
 .phase-node.completed {
@@ -189,21 +201,29 @@ body {
 
     border-color: var(--deep-red);
 
-    background: #160000;
+    background: #130000;
+}
+
+.phase-node.active {
+    color: #000;
+
+    border-color: var(--red);
+
+    background: var(--red);
+
+    box-shadow:
+        0 0 10px
+        rgba(255, 36, 36, 0.7);
 }
 
 
-/* ==========================================
-   PROTAGONIST HUD
-========================================== */
+/* =========================================
+   ENEMY HP
+========================================= */
 
-.enemy-hud {
-    text-align: right;
-}
-
-.hp-shell {
+#enemyHPBar {
     width: 100%;
-    height: 15px;
+    height: 14px;
 
     margin-top: 6px;
 
@@ -214,85 +234,135 @@ body {
     background: #000;
 }
 
-#enemyHP {
+#enemyHPFill {
     width: 100%;
     height: 100%;
 
     background: var(--white);
 
-    transition: width .18s linear;
+    transition:
+        width 0.15s linear;
 }
 
-#enemyStatus {
+#enemyHPText {
     margin-top: 4px;
 
-    color: #aaa;
+    color: #888;
 
-    font-size: 9px;
-
-    letter-spacing: 1px;
+    font-size: 8px;
 }
 
 
-/* ==========================================
-   PHASE TRANSITION
-========================================== */
+/* =========================================
+   TURN BANNER
+========================================= */
 
-#phaseTransition {
+#turnBanner {
     position: absolute;
 
-    top: 50%;
+    top: max(
+        82px,
+        calc(
+            env(safe-area-inset-top)
+            + 65px
+        )
+    );
+
     left: 50%;
 
     transform:
+        translateX(-50%);
+
+    z-index: 8;
+
+    padding:
+        4px
+        10px;
+
+    border:
+        1px solid #333;
+
+    background:
+        rgba(0,0,0,0.75);
+
+    color: #888;
+
+    font-size: 9px;
+    font-weight: 900;
+
+    letter-spacing: 3px;
+
+    pointer-events: none;
+}
+
+
+/* =========================================
+   PHASE SPLASH
+========================================= */
+
+#phaseSplash {
+    position: absolute;
+
+    top: 42%;
+    left: 50%;
+
+    z-index: 60;
+
+    transform:
         translate(-50%, -50%)
-        scale(.75);
+        scale(0.7);
 
     opacity: 0;
 
-    pointer-events: none;
-
     text-align: center;
 
-    z-index: 50;
+    pointer-events: none;
 }
 
-#phaseTransition.show {
+#phaseSplash.show {
     animation:
-        phaseReveal 1.15s ease-out forwards;
+        phaseSplashAnimation
+        1.15s ease-out
+        forwards;
 }
 
-#phaseTransitionSmall {
+#phaseSplashTop {
     color: #aaa;
 
-    font-size: 11px;
+    font-size: 10px;
 
     letter-spacing: 5px;
 }
 
-#phaseTransitionBig {
+#phaseSplashMain {
     margin-top: 8px;
 
     color: var(--red);
 
-    font-size: clamp(30px, 8vw, 70px);
+    font-size: clamp(
+        32px,
+        9vw,
+        72px
+    );
+
     font-weight: 900;
 
     letter-spacing: 4px;
 
     text-shadow:
         3px 3px #000,
-        0 0 15px rgba(255,0,0,.75);
+        0 0 18px
+        rgba(255,0,0,0.8);
 }
 
-@keyframes phaseReveal {
+@keyframes phaseSplashAnimation {
 
     0% {
         opacity: 0;
 
         transform:
             translate(-50%, -50%)
-            scale(.65);
+            scale(0.6);
     }
 
     18% {
@@ -300,7 +370,7 @@ body {
 
         transform:
             translate(-50%, -50%)
-            scale(1.08);
+            scale(1.1);
     }
 
     30% {
@@ -317,85 +387,105 @@ body {
         opacity: 0;
 
         transform:
-            translate(-50%, -54%)
+            translate(-50%, -56%)
             scale(1);
     }
 }
 
 
-/* ==========================================
+/* =========================================
    DIALOGUE
-========================================== */
+========================================= */
 
 #dialogueBox {
     position: absolute;
 
     left: 50%;
-    bottom: 208px;
 
-    transform: translateX(-50%);
+    bottom:
+        calc(
+            207px
+            + env(safe-area-inset-bottom)
+        );
 
-    width: min(88vw, 650px);
-    min-height: 65px;
-
-    padding: 12px 14px;
-
-    border: 3px solid var(--white);
-
-    background: rgba(0,0,0,.96);
-
-    font-size: 13px;
-    line-height: 1.45;
+    transform:
+        translateX(-50%);
 
     z-index: 12;
+
+    width: min(
+        calc(100vw - 24px),
+        700px
+    );
+
+    min-height: 58px;
+
+    padding: 10px 12px;
+
+    border: 2px solid var(--white);
+
+    background:
+        rgba(0,0,0,0.94);
+
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 #dialogueStar {
-    margin-right: 5px;
-
     color: var(--red);
+
+    margin-right: 5px;
 }
 
 
-/* ==========================================
+/* =========================================
    ABILITY PANEL
-========================================== */
+========================================= */
 
 #abilityPanel {
     position: absolute;
 
     left: 50%;
-    bottom: 127px;
 
-    transform: translateX(-50%);
+    bottom:
+        calc(
+            132px
+            + env(safe-area-inset-bottom)
+        );
 
-    width: min(92vw, 760px);
-    min-height: 70px;
+    transform:
+        translateX(-50%);
 
-    padding: 7px 9px;
+    z-index: 13;
+
+    width: min(
+        calc(100vw - 24px),
+        700px
+    );
+
+    min-height: 65px;
+
+    padding: 7px;
 
     border:
-        2px solid
-        var(--dark-gray);
+        1px solid #333;
 
     background:
-        rgba(4,4,4,.97);
-
-    z-index: 11;
+        rgba(6,6,6,0.96);
 }
 
-#abilityTitle {
+#abilityHeader {
     margin-bottom: 6px;
 
-    color: #777;
+    color: #666;
 
-    font-size: 9px;
-    font-weight: bold;
+    font-size: 8px;
+    font-weight: 900;
 
     letter-spacing: 2px;
 }
 
-#abilityOptions {
+#abilityList {
     display: flex;
 
     gap: 6px;
@@ -405,86 +495,34 @@ body {
     scrollbar-width: none;
 }
 
-#abilityOptions::-webkit-scrollbar {
+#abilityList::-webkit-scrollbar {
     display: none;
 }
 
-.ability-option {
+.ability-button {
     flex: 0 0 auto;
 
-    min-height: 38px;
+    min-height: 36px;
 
-    padding: 7px 10px;
+    padding:
+        6px
+        9px;
 
-    border: 2px solid #555;
+    border:
+        2px solid #444;
 
-    background: #080808;
-    color: #bbb;
+    background:
+        #080808;
 
-    font-family: inherit;
+    color: #aaa;
 
-    font-size: 10px;
-    font-weight: bold;
+    font-size: 9px;
+    font-weight: 900;
 
     white-space: nowrap;
 }
 
-.ability-option:active {
-    transform: translateY(2px);
-}
-
-.ability-option.selected {
-    border-color: var(--red);
-
-    color: var(--red);
-
-    background: #160000;
-
-    box-shadow:
-        inset 0 0 10px rgba(255,0,0,.12);
-}
-
-
-/* ==========================================
-   MAIN BATTLE MENU
-========================================== */
-
-#battleMenu {
-    position: absolute;
-
-    left: 50%;
-    bottom: 75px;
-
-    transform: translateX(-50%);
-
-    display: flex;
-
-    width: min(92vw, 760px);
-
-    gap: 7px;
-
-    z-index: 11;
-}
-
-.menu-button {
-    flex: 1;
-
-    height: 43px;
-
-    border: 2px solid #555;
-
-    background: #070707;
-    color: #aaa;
-
-    font-family: inherit;
-
-    font-size: 10px;
-    font-weight: 900;
-
-    letter-spacing: .5px;
-}
-
-.menu-button.active {
+.ability-button.selected {
     color: var(--red);
 
     border-color: var(--red);
@@ -492,35 +530,114 @@ body {
     background: #170000;
 }
 
-.menu-button:active {
-    transform: translateY(2px);
+.ability-button.locked {
+    color: #444;
+
+    border-color: #222;
+
+    background: #050505;
+}
+
+.ability-button:active {
+    transform:
+        translateY(2px);
 }
 
 
-/* ==========================================
-   MOBILE CONTROLS
-========================================== */
+/* =========================================
+   CATEGORY MENU
+========================================= */
 
-#mobileControls {
+#categoryMenu {
     position: absolute;
 
-    left: 14px;
-    right: 14px;
+    left: 50%;
 
     bottom:
-        max(
-            10px,
-            env(safe-area-inset-bottom)
+        calc(
+            82px
+            + env(safe-area-inset-bottom)
         );
+
+    transform:
+        translateX(-50%);
+
+    z-index: 14;
 
     display: flex;
 
-    justify-content: space-between;
+    width: min(
+        calc(100vw - 24px),
+        700px
+    );
+
+    gap: 5px;
+}
+
+.category-button {
+    flex: 1;
+
+    min-width: 0;
+    height: 42px;
+
+    padding: 2px;
+
+    border:
+        2px solid #444;
+
+    background: #070707;
+
+    color: #888;
+
+    font-size: clamp(
+        7px,
+        2.1vw,
+        10px
+    );
+
+    font-weight: 900;
+}
+
+.category-button.active {
+    color: var(--red);
+
+    border-color: var(--red);
+
+    background: #170000;
+}
+
+.category-button:active {
+    transform:
+        translateY(2px);
+}
+
+
+/* =========================================
+   MOBILE CONTROLS
+========================================= */
+
+#controls {
+    position: absolute;
+
+    left: 12px;
+    right: 12px;
+
+    bottom:
+        max(
+            7px,
+            env(safe-area-inset-bottom)
+        );
+
+    z-index: 20;
+
+    display: flex;
+
+    justify-content:
+        space-between;
+
     align-items: flex-end;
 
     pointer-events: none;
-
-    z-index: 15;
 }
 
 
@@ -530,13 +647,13 @@ body {
     display: grid;
 
     grid-template-columns:
-        44px
-        44px
-        44px;
+        42px
+        42px
+        42px;
 
     grid-template-rows:
-        35px
-        35px;
+        32px
+        32px;
 
     gap: 3px;
 
@@ -544,315 +661,310 @@ body {
 }
 
 .move-button {
-    border: 2px solid #555;
+    border:
+        2px solid #444;
+
+    border-radius: 4px;
 
     background:
-        rgba(10,10,10,.9);
+        rgba(10,10,10,0.94);
 
     color: #ddd;
 
-    font-size: 15px;
+    font-size: 14px;
 
-    border-radius: 3px;
+    touch-action: none;
 }
 
 .move-button:active {
-    border-color: var(--red);
-
     color: var(--red);
 
-    background: #190000;
+    border-color: var(--red);
+
+    background: #170000;
 }
 
-#moveUp {
+#upButton {
     grid-column: 2;
+    grid-row: 1;
 }
 
-#moveLeft {
+#leftButton {
     grid-column: 1;
     grid-row: 2;
 }
 
-#moveDown {
+#downButton {
     grid-column: 2;
     grid-row: 2;
 }
 
-#moveRight {
+#rightButton {
     grid-column: 3;
     grid-row: 2;
 }
 
 
-/* ==========================================
-   ATTACK BUTTON
-========================================== */
+/* =========================================
+   ACTION
+========================================= */
 
-#attackButton {
-    width: 76px;
-    height: 76px;
+#actionArea {
+    display: flex;
 
-    border: 3px solid var(--red);
+    align-items: center;
+
+    gap: 8px;
+
+    pointer-events: auto;
+}
+
+#selectedDisplay {
+    max-width: 120px;
+
+    overflow: hidden;
+
+    color: #777;
+
+    font-size: 8px;
+
+    text-align: right;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+}
+
+#actionButton {
+    width: 68px;
+    height: 68px;
+
+    border:
+        3px solid var(--red);
 
     border-radius: 50%;
 
     background:
         radial-gradient(
             circle,
-            #260000,
+            #280000,
             #080000
         );
 
     color: var(--white);
 
-    font-family: inherit;
-
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 900;
 
     letter-spacing: 1px;
 
-    pointer-events: auto;
-
     box-shadow:
-        0 0 12px
-        rgba(255,0,0,.18);
+        0 0 14px
+        rgba(255,0,0,0.2);
+
+    touch-action: none;
 }
 
-#attackButton:active {
-    transform: scale(.91);
+#actionButton:active {
+    transform:
+        scale(0.91);
 
     color: #000;
 
-    background: var(--red);
+    background:
+        var(--red);
 
     box-shadow:
-        0 0 20px
-        rgba(255,0,0,.8);
+        0 0 22px
+        rgba(255,0,0,0.75);
 }
 
 
-/* ==========================================
-   BATTLE STATE
-========================================== */
+/* =========================================
+   ERROR BOX
+========================================= */
 
-#battleState {
+#errorBox {
     position: absolute;
 
-    left: 50%;
-    bottom: 53px;
+    top: 115px;
+    left: 12px;
+    right: 12px;
 
-    transform: translateX(-50%);
+    z-index: 1000;
 
-    color: #555;
+    display: none;
 
-    font-size: 8px;
-    font-style: normal;
+    max-height: 45vh;
 
-    letter-spacing: 1px;
+    margin: 0;
 
-    z-index: 10;
+    padding: 12px;
+
+    overflow: auto;
+
+    border:
+        2px solid var(--red);
+
+    background:
+        rgba(20,0,0,0.97);
+
+    color: #fff;
+
+    font-size: 11px;
+
+    white-space: pre-wrap;
+
+    user-select: text;
 }
 
-#turnText {
-    color: #aaa;
-}
 
-#selectedAbility {
-    color: var(--red);
-}
+/* =========================================
+   HIT SHAKE
+========================================= */
 
-.separator {
-    margin: 0 5px;
-}
-
-
-/* ==========================================
-   SCREEN HIT EFFECT
-========================================== */
-
-#game.hit {
+#game.hit-shake {
     animation:
-        screenHit .16s linear;
+        hitShake
+        0.18s linear;
 }
 
-@keyframes screenHit {
+@keyframes hitShake {
 
     0% {
-        transform: translate(0,0);
-        filter: none;
+        transform:
+            translate(0,0);
     }
 
     20% {
-        transform: translate(-5px,2px);
-        filter: brightness(1.8);
+        transform:
+            translate(-5px,2px);
     }
 
     40% {
-        transform: translate(5px,-2px);
+        transform:
+            translate(5px,-2px);
     }
 
     60% {
-        transform: translate(-3px,-1px);
+        transform:
+            translate(-3px,-1px);
     }
 
     80% {
-        transform: translate(2px,1px);
+        transform:
+            translate(2px,1px);
     }
 
     100% {
-        transform: translate(0,0);
-        filter: none;
+        transform:
+            translate(0,0);
     }
 }
 
 
-/* ==========================================
-   SMALL PHONES
-========================================== */
+/* =========================================
+   VERY SMALL SCREENS
+========================================= */
 
 @media
-(max-width: 600px),
-(max-height: 700px) {
+(max-width: 390px) {
 
     #hud {
-        left: 10px;
-        right: 10px;
-
-        gap: 12px;
+        left: 8px;
+        right: 8px;
     }
 
-    .hud-name {
-        font-size: 11px;
-    }
-
-    #phaseLabel {
-        font-size: 9px;
+    #phaseTrack {
+        gap: 1px;
     }
 
     .phase-node {
-        padding:
-            3px
-            0;
-
         font-size: 6px;
     }
 
-    #dialogueBox {
-        bottom: 202px;
-
-        min-height: 52px;
-
-        padding: 9px 10px;
-
-        font-size: 11px;
+    #dialogueBox,
+    #abilityPanel,
+    #categoryMenu {
+        width:
+            calc(100vw - 16px);
     }
 
-    #abilityPanel {
-        bottom: 124px;
-
-        min-height: 65px;
-    }
-
-    #battleMenu {
-        bottom: 75px;
-    }
-
-    .menu-button {
-        height: 40px;
-
-        padding: 2px;
-
+    .ability-button {
         font-size: 8px;
     }
 
-    .ability-option {
-        min-height: 34px;
-
-        padding: 5px 8px;
-
-        font-size: 8px;
+    #selectedDisplay {
+        display: none;
     }
-
-    #attackButton {
-        width: 67px;
-        height: 67px;
-
-        font-size: 9px;
-    }
-
 }
 
 
-/* ==========================================
-   LANDSCAPE PHONE
-========================================== */
+/* =========================================
+   LANDSCAPE
+========================================= */
 
 @media
 (orientation: landscape)
 and
-(max-height: 550px) {
+(max-height: 600px) {
 
     #dialogueBox {
-        left: 51%;
+        left: 58%;
 
-        bottom: 118px;
+        bottom:
+            calc(
+                112px +
+                env(safe-area-inset-bottom)
+            );
 
-        width: 54%;
+        width: 58%;
 
-        min-height: 48px;
+        min-height: 44px;
     }
 
     #abilityPanel {
-        left: 51%;
+        left: 58%;
 
-        bottom: 63px;
+        bottom:
+            calc(
+                61px +
+                env(safe-area-inset-bottom)
+            );
 
-        width: 54%;
+        width: 58%;
 
-        min-height: 48px;
+        min-height: 45px;
     }
 
-    #abilityOptions {
-        gap: 4px;
+    #categoryMenu {
+        left: 58%;
+
+        bottom:
+            max(
+                8px,
+                env(safe-area-inset-bottom)
+            );
+
+        width: 58%;
     }
 
-    .ability-option {
-        min-height: 27px;
+    .category-button {
+        height: 38px;
+    }
+
+    .ability-button {
+        min-height: 28px;
 
         padding: 3px 6px;
     }
 
-    #battleMenu {
-        left: 51%;
-
-        bottom: 14px;
-
-        width: 54%;
+    #controls {
+        right: 18px;
     }
 
-    .menu-button {
-        height: 38px;
+    #actionButton {
+        width: 58px;
+        height: 58px;
     }
-
-    #battleState {
-        display: none;
-    }
-
-    #dpad {
-        grid-template-columns:
-            40px
-            40px
-            40px;
-
-        grid-template-rows:
-            34px
-            34px;
-    }
-
-    #attackButton {
-        width: 62px;
-        height: 62px;
-    }
-
 }
