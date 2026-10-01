@@ -331,7 +331,8 @@
                 () => {
 
                     const category =
-                        button.dataset.category;
+                        String(button.dataset.category || "")
+                            .toUpperCase();
 
 
                     if (
@@ -374,7 +375,7 @@
             button.classList.toggle(
                 "active",
 
-                button.dataset.category ===
+                String(button.dataset.category || "").toUpperCase() ===
                     selectedCategory
             );
         });
@@ -1802,6 +1803,45 @@
     }
 
 
+    function bindDialogue() {
+        const box = document.getElementById("dialogue");
+        const speaker = document.getElementById("speaker");
+        if (!box || typeof ForecastDialogue === "undefined") return;
+
+        box.addEventListener("click", () => {
+            if (ForecastDialogue.isActive()) ForecastDialogue.next();
+        });
+
+        window.addEventListener("forecast-dialogue-line", event => {
+            const line = event.detail || {};
+            if (speaker) speaker.textContent = line.speaker || "";
+            if (dialogueText) dialogueText.textContent = line.text || "";
+            box.classList.add("dialogue-active");
+        });
+
+        window.addEventListener("forecast-dialogue-state", event => {
+            const active = !!(event.detail && event.detail.active);
+            box.classList.toggle("dialogue-active", active);
+        });
+
+        window.addEventListener("forecast-phase-change", event => {
+            const phase = event.detail && event.detail.phase;
+            if (phase) setTimeout(() => ForecastDialogue.play(String(phase)), 120);
+        });
+    }
+
+    function bindArsenalToggle() {
+        const arsenal = document.getElementById("arsenal");
+        const toggle = document.getElementById("arsenalToggle");
+        const icon = document.getElementById("arsenalToggleIcon");
+        if (!arsenal || !toggle) return;
+        toggle.addEventListener("click", () => {
+            const closed = arsenal.classList.toggle("closed");
+            toggle.setAttribute("aria-expanded", String(!closed));
+            if (icon) icon.textContent = closed ? "+" : "−";
+        });
+    }
+
     /* =====================================================
        EVENTS
     ===================================================== */
@@ -2034,6 +2074,8 @@
 
 
         buildCategoryNav();
+        bindArsenalToggle();
+        bindDialogue();
 
 
         /*
@@ -2074,10 +2116,13 @@
         updateHUD();
 
 
-        showMessage(
-            "DRAG TO AIM — RELEASE TO ATTACK",
-            2400
-        );
+        if (typeof ForecastDialogue !== "undefined") {
+            ForecastDialogue.play("opening", () => {
+                showMessage("DRAG TO AIM — RELEASE TO ATTACK", 2400);
+            });
+        } else {
+            showMessage("DRAG TO AIM — RELEASE TO ATTACK", 2400);
+        }
 
 
         requestAnimationFrame(
