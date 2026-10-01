@@ -480,16 +480,12 @@ const ForecastBattle = (() => {
         ) {
 
             case "idle": {
-                const frame =
-                    Math.floor(
-                        time / 420
-                    ) % 3;
-
-                return [
-                    "idle_1",
-                    "idle_2",
-                    "idle_3"
-                ][frame];
+                const cycle = Math.floor(time / 125) % 48;
+                if (cycle === 34) return "blink";
+                if (cycle === 41) return "look_down";
+                if (cycle === 45) return "look_up";
+                const frame = Math.floor(time / 240) % 4;
+                return ["idle_1","idle_2","idle_3","idle_2"][frame];
             }
 
 
@@ -500,7 +496,7 @@ const ForecastBattle = (() => {
                     90
                 )
                     ? "gun_pose"
-                    : "gun_fire";
+                    : ((Math.floor((time - forecast.animationStarted) / 65) % 2) ? "gun_pose" : "gun_fire");
 
 
             case "bones":
@@ -519,8 +515,13 @@ const ForecastBattle = (() => {
                 return "scythe_ready";
 
 
-            case "scythe_swing":
-                return "scythe_swing";
+            case "scythe_swing": {
+                const age = time - forecast.animationStarted;
+                if (age < 90) return "summon_scythe";
+                if (age < 180) return "scythe_ready";
+                if (age < 360) return "scythe_swing";
+                return "scythe_finish";
+            }
 
 
             case "scythe_finish":
