@@ -2125,6 +2125,40 @@
 
     function init() {
 
+        const menu=document.getElementById("mainMenu");
+        const game=document.getElementById("game");
+        const start=document.getElementById("menuStart");
+        const cont=document.getElementById("menuContinue");
+        const settings=document.getElementById("menuSettings");
+        const settingsPanel=document.getElementById("menuSettingsPanel");
+        const settingsBack=document.getElementById("menuSettingsBack");
+        const sound=document.getElementById("menuSound");
+        const shake=document.getElementById("menuShake");
+        let gameStarted=false;
+
+        function beginGame(){
+            if(gameStarted)return;
+            gameStarted=true;
+            if(menu)menu.hidden=true;
+            if(game)game.classList.remove("game-hidden");
+            localStorage.setItem("forecast-save","1");
+            startBattle();
+        }
+        if(start)start.addEventListener("click",beginGame);
+        if(cont){
+            cont.disabled=!localStorage.getItem("forecast-save");
+            cont.addEventListener("click",beginGame);
+        }
+        if(settings)settings.addEventListener("click",()=>{document.querySelector(".menu-actions").hidden=true;settingsPanel.hidden=false;});
+        if(settingsBack)settingsBack.addEventListener("click",()=>{settingsPanel.hidden=true;document.querySelector(".menu-actions").hidden=false;});
+        if(sound)sound.addEventListener("change",()=>localStorage.setItem("forecast-sound",sound.checked?"1":"0"));
+        if(shake)shake.addEventListener("change",()=>localStorage.setItem("forecast-shake",shake.checked?"1":"0"));
+        if(sound&&localStorage.getItem("forecast-sound")==="0")sound.checked=false;
+        if(shake&&localStorage.getItem("forecast-shake")==="0")shake.checked=false;
+    }
+
+    function startBattle() {
+
         if (!checkModules()) {
             return;
         }
