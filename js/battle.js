@@ -2779,169 +2779,28 @@ const ForecastBattle = (() => {
        ENEMY TURN
     ===================================================== */
 
-    function updateEnemyTurn(
-        dt,
-        time
-    ) {
-        if (
-            eyeEffects.momentUntil >
-            time
-        ) {
-            return;
-        }
-
-
+    function updateEnemyTurn(dt, time) {
+        if (eyeEffects.momentUntil > time) return;
         enemyAttackTimer -= dt;
-
-
-        if (
-            enemyAttackTimer <= 0
-        ) {
-            const difficulty = getPhaseDifficulty();
-            enemyAttackTimer = random(
-                Math.max(.28, .42 - difficulty * .12),
-                Math.max(.48, .75 - difficulty * .20)
-            );
-
-
-            spawnEnemyAttack(
-                time
-            );
+        if (enemyAttackTimer <= 0) {
+            enemyAttackTimer = 999;
+            spawnEnemyAttack(time);
         }
     }
-
 
     function spawnEnemyAttack(time) {
-        const difficulty = getPhaseDifficulty();
-        const patternCount = difficulty > .62 ? 4 : (difficulty > .25 ? 3 : 2);
-        const pattern = Math.floor(random(0, patternCount));
-
-
-        switch (pattern) {
-
-            /*
-                Direct shot
-            */
-
-            case 0:
-
-                enemyShot(
-                    protagonist.x,
-                    protagonist.y,
-                    forecast.x,
-                    forecast.y,
-                    280,
-                    6
-                );
-
-                break;
-
-
-            /*
-                Three-shot spread
-            */
-
-            case 1: {
-
-                const base =
-                    Math.atan2(
-                        forecast.y -
-                        protagonist.y,
-
-                        forecast.x -
-                        protagonist.x
-                    );
-
-
-                for (
-                    let i = -1;
-                    i <= 1;
-                    i++
-                ) {
-                    const angle =
-                        base +
-                        i * 0.16;
-
-
-                    enemyProjectiles.push({
-                        x: protagonist.x,
-                        y: protagonist.y,
-
-                        vx:
-                            Math.cos(angle) *
-                            245,
-
-                        vy:
-                            Math.sin(angle) *
-                            245,
-
-                        radius: 6,
-
-                        created: time,
-                        life: 3000
-                    });
-                }
-
-                break;
-            }
-
-
-            /*
-                Side attack
-            */
-
-            case 2:
-
-                enemyShot(
-                    arena.left,
-                    forecast.y,
-                    forecast.x,
-                    forecast.y,
-                    330,
-                    7
-                );
-
-                enemyShot(
-                    arena.right,
-                    forecast.y,
-                    forecast.x,
-                    forecast.y,
-                    330,
-                    7
-                );
-
-                break;
-
-
-            /*
-                Predictive shot
-            */
-
-            case 3: {
-
-                const side =
-                    Math.random() <
-                    0.5
-                        ? -28
-                        : 28;
-
-
-                enemyShot(
-                    protagonist.x,
-                    protagonist.y,
-
-                    forecast.x + side,
-                    forecast.y,
-
-                    360,
-                    7
-                );
-
-                break;
-            }
-        }
+        const angle = Math.atan2(forecast.y - protagonist.y, forecast.x - protagonist.x);
+        enemyProjectiles.push({
+            x: protagonist.x,
+            y: protagonist.y,
+            vx: Math.cos(angle) * 520,
+            vy: Math.sin(angle) * 520,
+            radius: 18,
+            created: time,
+            life: 850,
+            type: "slash"
+        });
     }
-
 
     function enemyShot(
         x,
@@ -3877,18 +3736,26 @@ const ForecastBattle = (() => {
             ctx.lineWidth = 2;
 
 
-            ctx.beginPath();
-
-            ctx.arc(
-                projectile.x,
-                projectile.y,
-                projectile.radius,
-                0,
-                TAU
-            );
-
-            ctx.fill();
-            ctx.stroke();
+            if (projectile.type === "slash") {
+                const a = Math.atan2(projectile.vy, projectile.vx);
+                ctx.translate(projectile.x, projectile.y);
+                ctx.rotate(a);
+                ctx.lineWidth = 6;
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.arc(0, 0, 24, -0.9, 0.9);
+                ctx.stroke();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 24, -0.9, 0.9);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, projectile.radius, 0, TAU);
+                ctx.fill();
+                ctx.stroke();
+            }
 
             ctx.restore();
         }
