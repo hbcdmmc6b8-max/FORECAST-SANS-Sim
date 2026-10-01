@@ -1,8 +1,16 @@
-/* =========================================
-   FORECAST!SANS — PHASE SYSTEM V0.3
-========================================= */
+/* =========================================================
+   FORECAST!SANS — SAME END ANYWAY
+   V1 PHASE SYSTEM
+
+   EXACT PROGRESSION:
+   1 -> 1.5 -> 2 -> 2.5 -> 3 -> 3.5 -> 4 -> 4.5 -> 5
+
+   A phase advances ONLY when Battle confirms
+   that the protagonist actually hit Forecast.
+========================================================= */
 
 const ForecastPhases = (() => {
+    "use strict";
 
     const PHASES = [
         "1",
@@ -19,48 +27,47 @@ const ForecastPhases = (() => {
     let phaseIndex = 0;
     let hitsTaken = 0;
 
+    /*
+        Prevents one attack/projectile from counting
+        multiple times during a phase transition.
+    */
     let locked = false;
-    let lockTimer = null;
+    let unlockTimer = null;
 
+    const TRANSITION_LOCK_MS = 900;
 
-    /* =====================================
-       BASIC INFO
-    ===================================== */
 
     function getPhase() {
         return PHASES[phaseIndex];
     }
 
+
     function getPhaseIndex() {
         return phaseIndex;
     }
+
 
     function getHitsTaken() {
         return hitsTaken;
     }
 
+
     function getAllPhases() {
         return [...PHASES];
     }
 
+
     function isFinalPhase() {
         return phaseIndex === PHASES.length - 1;
     }
+
 
     function isLocked() {
         return locked;
     }
 
 
-    /* =====================================
-       UNLOCK CHECK
-
-       Example:
-       isPhaseUnlocked("3.5")
-    ===================================== */
-
     function isPhaseUnlocked(requiredPhase) {
-
         const requiredIndex =
             PHASES.indexOf(
                 String(requiredPhase)
@@ -74,35 +81,36 @@ const ForecastPhases = (() => {
     }
 
 
-    /* =====================================
-       CONFIRMED PROTAGONIST HIT
-    ===================================== */
-
     function confirmedHit() {
-
         /*
-         One attack cannot advance
-         several phases.
+            Battle.js is the ONLY place that should
+            call this after a real protagonist hit.
         */
 
         if (locked) {
             return {
                 advanced: false,
-                reason: "locked"
+                reason: "locked",
+                phase: getPhase(),
+                phaseIndex,
+                hitsTaken
             };
         }
 
 
         /*
-         Phase 5 never becomes Phase 6.
+            NO PHASE 6.
+
+            We intentionally do not define Forecast's
+            final defeat condition here.
         */
-
         if (isFinalPhase()) {
-
             return {
                 advanced: false,
                 reason: "final-phase",
-                phase: getPhase()
+                phase: getPhase(),
+                phaseIndex,
+                hitsTaken
             };
         }
 
@@ -110,252 +118,39 @@ const ForecastPhases = (() => {
         locked = true;
 
         hitsTaken++;
-
         phaseIndex++;
 
 
-        updateHUD();
+        const result = {
+            advanced: true,
+            phase: getPhase(),
+            phaseIndex,
+            hitsTaken,
+            final: isFinalPhase()
+        };
 
-        showPhaseSplash();
-
-        shakeScreen();
-
-
-        /*
-         Notify the battle/game controller.
-        */
 
         window.dispatchEvent(
             new CustomEvent(
                 "forecast-phase-change",
                 {
-                    detail: {
-                        phase: getPhase(),
-                        phaseIndex,
-                        hitsTaken,
-                        final:
-                            isFinalPhase()
-                    }
+                    detail: result
                 }
             )
         );
 
 
-        /*
-         Transition protection.
-        */
-
-        clearTimeout(lockTimer);
-
-        lockTimer =
-            setTimeout(
-                () => {
-
-                    locked = false;
-
-                },
-                1200
-            );
-
-
-        return {
-            advanced: true,
-            phase: getPhase(),
-            phaseIndex,
-            hitsTaken,
-            final:
-                isFinalPhase()
-        };
-    }
-
-
-    /* =====================================
-       HUD
-    ===================================== */
-
-    function updateHUD() {
-
-        const label =
-            document.getElementById(
-                "phaseLabel"
-            );
-
-
-        if (label) {
-
-            label.textContent =
-                `PHASE ${getPhase()}`;
+        if (unlockTimer) {
+            clearTimeout(unlockTimer);
         }
 
 
-        const nodes =
-            document.querySelectorAll(
-                ".phase-node"
-            );
-
-
-        nodes.forEach(
-            (node, index) => {
-
-                node.classList.remove(
-                    "active",
-                    "completed"
-                );
-
-
-                if (index < phaseIndex) {
-
-                    node.classList.add(
-                        "completed"
-                    );
-                }
-
-
-                else if (
-                    index === phaseIndex
-                ) {
-
-                    node.classList.add(
-                        "active"
-                    );
-                }
-
-            }
-        );
-    }
-
-
-    /* =====================================
-       PHASE SPLASH
-    ===================================== */
-
-    function showPhaseSplash() {
-
-        const splash =
-            document.getElementById(
-                "phaseSplash"
-            );
-
-        const main =
-            document.getElementById(
-                "phaseSplashMain"
-            );
-
-
-        if (!splash || !main) {
-            return;
-        }
-
-
-        main.textContent =
-            `PHASE ${getPhase()}`;
-
-
-        splash.classList.remove(
-            "show"
-        );
-
-
-        /*
-         Force browser to restart
-         the animation.
-        */
-
-        void splash.offsetWidth;
-
-
-        splash.classList.add(
-            "show"
-        );
-    }
-
-
-    /* =====================================
-       SCREEN SHAKE
-    ===================================== */
-
-    function shakeScreen() {
-
-        const game =
-            document.getElementById(
-                "game"
-            );
-
-
-        if (!game) {
-            return;
-        }
-
-
-        game.classList.remove(
-            "hit-shake"
-        );
-
-
-        void game.offsetWidth;
-
-
-        game.classList.add(
-            "hit-shake"
-        );
-
-
-        setTimeout(
+        unlockTimer = setTimeout(
             () => {
-
-                game.classList.remove(
-                    "hit-shake"
-                );
-
+                locked = false;
+                unlockTimer = null;
             },
-            220
-        );
-    }
-
-
-    /* =====================================
-       RESET
-    ===================================== */
-
-    function reset() {
-
-        phaseIndex = 0;
-
-        hitsTaken = 0;
-
-        locked = false;
-
-
-        clearTimeout(
-            lockTimer
-        );
-
-
-        updateHUD();
-    }
-
-
-    /* =====================================
-       TEMPORARY TEST
-
-       We'll remove this when battle.js
-       handles real collisions.
-
-       Calling:
-       ForecastPhases.testHit()
-
-       simulates ONE legitimate hit.
-    ===================================== */
-
-    function testHit() {
-
-        const result =
-            confirmedHit();
-
-
-        console.log(
-            "Forecast phase test:",
-            result
+            TRANSITION_LOCK_MS
         );
 
 
@@ -363,12 +158,41 @@ const ForecastPhases = (() => {
     }
 
 
-    /* =====================================
-       PUBLIC API
-    ===================================== */
+    function reset() {
+        phaseIndex = 0;
+        hitsTaken = 0;
+        locked = false;
+
+        if (unlockTimer) {
+            clearTimeout(unlockTimer);
+            unlockTimer = null;
+        }
+
+        window.dispatchEvent(
+            new CustomEvent(
+                "forecast-phase-reset",
+                {
+                    detail: {
+                        phase: getPhase(),
+                        phaseIndex,
+                        hitsTaken
+                    }
+                }
+            )
+        );
+    }
+
+
+    /*
+        Handy for development without changing
+        the real battle progression rules.
+    */
+    function debugAdvance() {
+        return confirmedHit();
+    }
+
 
     return {
-
         getPhase,
         getPhaseIndex,
         getHitsTaken,
@@ -379,25 +203,8 @@ const ForecastPhases = (() => {
         isPhaseUnlocked,
 
         confirmedHit,
-
         reset,
-
-        testHit
-
+        debugAdvance
     };
 
 })();
-
-
-/* =========================================
-   INITIALIZE HUD
-========================================= */
-
-window.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        ForecastPhases.reset();
-
-    }
-);
