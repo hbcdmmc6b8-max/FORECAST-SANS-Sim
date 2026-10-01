@@ -1,1606 +1,2546 @@
 /* ==========================================================
-   FORECAST!SANS — BATTLE ENGINE V0.5
-   "SAME END ANYWAY"
+   FORECAST!SANS — BATTLE ENGINE V0.6
+   FULL REBUILD
+   "SAME END ANYWAY."
 ========================================================== */
 
 const Battle = (() => {
-    "use strict";
+"use strict";
 
-    let canvas = null;
-    let ctx = null;
+/* ==========================================================
+   CORE
+========================================================== */
 
-    let width = 0;
-    let height = 0;
-    let dpr = 1;
+let canvas;
+let ctx;
 
-    let running = false;
-    let lastFrame = 0;
-    let eventsInstalled = false;
+let width = 0;
+let height = 0;
+let dpr = 1;
 
+let running = false;
+let lastFrame = 0;
+let eventsInstalled = false;
 
-    /* ======================================================
-       TURN SYSTEM
-    ====================================================== */
+const TURN = Object.freeze({
+    FORECAST: "FORECAST",
+    PROTAGONIST: "PROTAGONIST",
+    TRANSITION: "TRANSITION",
+    ENDED: "ENDED"
+});
 
-    const TURN = {
-        FORECAST: "FORECAST",
-        ENEMY: "ENEMY",
-        TRANSITION: "TRANSITION",
-        ENDED: "ENDED"
-    };
+let turn = TURN.FORECAST;
+let turnStarted = 0;
+let transitionUntil = 0;
 
-    let turn = TURN.FORECAST;
-    let turnStarted = 0;
-    let transitionUntil = 0;
-
-    const FORECAST_TURN_LENGTH = 8000;
-    const ENEMY_TURN_LENGTH = 6000;
-
-
-    /* ======================================================
-       BATTLE BOX
-    ====================================================== */
-
-    const arena = {
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 0
-    };
+const FORECAST_TURN_MS = 8000;
+const PROTAGONIST_TURN_MS = 6000;
 
 
-    /* ======================================================
-       FORECAST
+/* ==========================================================
+   ARENA
 
-       IMPORTANT:
-       His x/y NEVER change during auto-dodge.
-    ====================================================== */
+   Forecast is NOT part of this box.
+   The protagonist is.
+========================================================== */
 
-    const forecast = {
-        x: 0,
-        y: 0,
-        radius: 23,
-
-        invulnerableUntil: 0,
-
-        animation: "idle",
-        animationStarted: 0,
-        animationUntil: 0
-    };
+const arena = {
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0
+};
 
 
-    /* ======================================================
-       ANIMATION SYSTEM
+/* ==========================================================
+   FORECAST
 
-       These names will map directly to clean sprite frames
-       when the finished animation assets are imported.
+   worldX/worldY NEVER change for dodging.
+========================================================== */
 
-       NO giant random character-sheet crop.
-    ====================================================== */
+const forecast = {
+    worldX: 0,
+    worldY: 0,
 
-    const FORECAST_ANIMATIONS = {
+    collisionRadius: 22,
+
+    invulnerableUntil: 0,
+
+    stamina: 100,
+    maxStamina: 100,
+
+    dodgeChain: 0,
+    lastDodgeAt: 0
+};
+
+
+/* ==========================================================
+   PROTAGONIST
+========================================================== */
+
+const protagonist = {
+    x: 0,
+    y: 0,
+
+    radius: 10,
+
+    hp: 100,
+    maxHp: 100,
+
+    speed: 125,
+
+    targetX: 0,
+    targetY: 0,
+
+    nextTargetAt: 0,
+    frozenUntil: 0
+};
+
+
+/* ==========================================================
+   REAL ANIMATION CONTROLLER
+========================================================== */
+
+const Animation = (() => {
+
+    const definitions = {
+
         idle: {
+            frames: ["idle_1", "idle_2", "idle_3"],
             fps: 5,
             loop: true
         },
 
         blink: {
-            fps: 8,
+            frames: ["idle_1", "blink", "idle_1"],
+            fps: 9,
             loop: false
         },
 
         look_down: {
-            fps: 6,
+            frames: ["look_down"],
+            fps: 1,
             loop: false
         },
 
         look_up: {
-            fps: 6,
+            frames: ["look_up"],
+            fps: 1,
             loop: false
         },
 
         cloak_flow: {
-            fps: 7,
+            frames: ["idle_1", "cloak_flow", "idle_2", "cloak_flow"],
+            fps: 6,
             loop: true
         },
 
         dodge_left: {
-            fps: 12,
-            loop: false
-        },
-
-        dodge_right: {
-            fps: 12,
-            loop: false
-        },
-
-        glock_fire: {
-            fps: 12,
-            loop: false
-        },
-
-        smg_fire: {
-            fps: 15,
-            loop: false
-        },
-
-        ar_fire: {
-            fps: 12,
-            loop: false
-        },
-
-        dmr_fire: {
-            fps: 10,
-            loop: false
-        },
-
-        shotgun_fire: {
-            fps: 10,
-            loop: false
-        },
-
-        scythe_summon: {
-            fps: 10,
-            loop: false
-        },
-
-        scythe_swing: {
+            frames: ["idle_1", "dodge_left", "dodge_afterimage"],
             fps: 14,
             loop: false
         },
 
-        gaster_charge: {
-            fps: 8,
+        dodge_right: {
+            frames: ["idle_1", "dodge_right", "dodge_afterimage"],
+            fps: 14,
             loop: false
         },
 
-        gaster_fire: {
-            fps: 12,
+        dodge_up: {
+            frames: ["idle_1", "dodge_up", "dodge_afterimage"],
+            fps: 14,
+            loop: false
+        },
+
+        dodge_down: {
+            frames: ["idle_1", "dodge_down", "dodge_afterimage"],
+            fps: 14,
+            loop: false
+        },
+
+        glock_fire: {
+            frames: ["gun_pose", "gun_fire", "gun_pose"],
+            fps: 14,
+            loop: false
+        },
+
+        smg_fire: {
+            frames: ["gun_pose", "gun_fire", "gun_pose", "gun_fire"],
+            fps: 17,
+            loop: false
+        },
+
+        ar_fire: {
+            frames: ["gun_pose", "gun_fire", "gun_pose"],
+            fps: 14,
+            loop: false
+        },
+
+        dmr_fire: {
+            frames: ["gun_pose", "gun_fire", "gun_pose"],
+            fps: 11,
+            loop: false
+        },
+
+        shotgun_fire: {
+            frames: ["gun_pose", "gun_fire", "gun_pose"],
+            fps: 11,
             loop: false
         },
 
         bone_control: {
+            frames: ["idle_1", "bone_control", "bone_control"],
             fps: 10,
             loop: false
         },
 
         eye_activate: {
+            frames: ["idle_1", "eye_activate", "eye_activate"],
             fps: 9,
             loop: false
         },
 
-        phase_change: {
+        scythe_summon: {
+            frames: ["idle_1", "summon_scythe", "scythe_ready"],
             fps: 10,
+            loop: false
+        },
+
+        scythe_swing: {
+            frames: ["scythe_ready", "scythe_swing", "scythe_finish"],
+            fps: 14,
+            loop: false
+        },
+
+        gaster_charge: {
+            frames: ["bone_control", "eye_activate"],
+            fps: 7,
+            loop: true
+        },
+
+        gaster_fire: {
+            frames: ["eye_activate", "bone_control"],
+            fps: 12,
+            loop: false
+        },
+
+        hit: {
+            frames: ["hit"],
+            fps: 1,
             loop: false
         },
 
         low_stamina: {
-            fps: 6,
+            frames: ["low_stamina"],
+            fps: 1,
             loop: true
         },
 
         exhausted: {
-            fps: 5,
+            frames: ["exhausted"],
+            fps: 1,
             loop: true
         },
 
-        hit: {
-            fps: 10,
+        phase_change: {
+            frames: ["idle_1", "phase_change", "phase_change"],
+            fps: 11,
             loop: false
         }
     };
 
 
-    function playForecastAnimation(
-        name,
-        duration = 300
-    ) {
-        if (!FORECAST_ANIMATIONS[name]) {
+    let current = "idle";
+    let startedAt = 0;
+    let forcedUntil = 0;
+
+
+    function play(name, duration = null) {
+
+        if (!definitions[name]) {
             name = "idle";
         }
 
-        const now = performance.now();
+        current = name;
+        startedAt = performance.now();
 
-        forecast.animation = name;
-        forecast.animationStarted = now;
-        forecast.animationUntil = now + duration;
+        const animation = definitions[name];
+
+        if (duration !== null) {
+            forcedUntil = startedAt + duration;
+        }
+
+        else if (animation.loop) {
+            forcedUntil = Infinity;
+        }
+
+        else {
+            forcedUntil =
+                startedAt +
+                (
+                    animation.frames.length /
+                    animation.fps
+                ) * 1000;
+        }
     }
 
 
-    function updateForecastAnimation(now) {
+    function update(now) {
+
         if (
-            forecast.animation !== "idle" &&
-            now >= forecast.animationUntil
+            current !== "idle" &&
+            now >= forcedUntil
         ) {
-            forecast.animation = "idle";
-            forecast.animationStarted = now;
+            play("idle");
         }
     }
 
 
-    /* ======================================================
-       FIXED BOSS POSITION
-    ====================================================== */
+    function getFrame(now) {
 
-    function positionForecast() {
-        forecast.x = width * 0.5;
+        const animation =
+            definitions[current];
 
-        // Boss stands ABOVE the protagonist battle box.
-        forecast.y = Math.max(
-            72,
-            arena.top - 82
+        if (!animation) {
+            return "idle_1";
+        }
+
+        const elapsed =
+            Math.max(
+                0,
+                now - startedAt
+            );
+
+        let index =
+            Math.floor(
+                elapsed /
+                (1000 / animation.fps)
+            );
+
+        if (animation.loop) {
+            index %=
+                animation.frames.length;
+        }
+
+        else {
+            index =
+                Math.min(
+                    index,
+                    animation.frames.length - 1
+                );
+        }
+
+        return animation.frames[index];
+    }
+
+
+    function getName() {
+        return current;
+    }
+
+
+    return {
+        play,
+        update,
+        getFrame,
+        getName
+    };
+
+})();
+
+
+/* ==========================================================
+   SPRITE SYSTEM
+
+   This replaces the giant guessed rectangular crop.
+
+   Frames can be loaded as CLEAN individual transparent PNGs.
+
+   assets/forecast/
+       idle_1.png
+       idle_2.png
+       idle_3.png
+       blink.png
+       dodge_left.png
+       ...
+========================================================== */
+
+const ForecastSprites = (() => {
+
+    const frameNames = [
+        "idle_1",
+        "idle_2",
+        "idle_3",
+
+        "blink",
+        "look_down",
+        "look_up",
+        "cloak_flow",
+
+        "dodge_left",
+        "dodge_right",
+        "dodge_up",
+        "dodge_down",
+        "dodge_afterimage",
+
+        "gun_pose",
+        "gun_fire",
+
+        "bone_control",
+        "eye_activate",
+
+        "summon_scythe",
+        "scythe_ready",
+        "scythe_swing",
+        "scythe_finish",
+
+        "hit",
+        "low_stamina",
+        "exhausted",
+        "phase_change"
+    ];
+
+
+    const frames = new Map();
+
+    let loaded = 0;
+
+
+    function load() {
+
+        frameNames.forEach(name => {
+
+            const image =
+                new Image();
+
+            image.src =
+                `./assets/forecast/${name}.png`;
+
+            image.onload = () => {
+
+                frames.set(
+                    name,
+                    image
+                );
+
+                loaded++;
+            };
+
+            /*
+                Missing frame does NOT crash the game.
+
+                Renderer will use the clean fallback until
+                that extracted animation frame exists.
+            */
+
+            image.onerror = () => {
+                frames.set(
+                    name,
+                    null
+                );
+            };
+
+        });
+
+    }
+
+
+    function get(name) {
+        return frames.get(name) || null;
+    }
+
+
+    function getLoadedCount() {
+        return loaded;
+    }
+
+
+    return {
+        load,
+        get,
+        getLoadedCount
+    };
+
+})();
+
+
+/* ==========================================================
+   PHASE VISUALS
+
+   Gameplay phase remains owned by ForecastPhases.
+========================================================== */
+
+const PHASE_STYLE = {
+
+    "1": {
+        aura: 0.10,
+        scale: 1
+    },
+
+    "1.5": {
+        aura: 0.16,
+        scale: 1
+    },
+
+    "2": {
+        aura: 0.22,
+        scale: 1.01
+    },
+
+    "2.5": {
+        aura: 0.28,
+        scale: 1.01
+    },
+
+    "3": {
+        aura: 0.35,
+        scale: 1.02
+    },
+
+    "3.5": {
+        aura: 0.42,
+        scale: 1.02
+    },
+
+    "4": {
+        aura: 0.50,
+        scale: 1.03
+    },
+
+    "4.5": {
+        aura: 0.60,
+        scale: 1.04
+    },
+
+    "5": {
+        aura: 0.80,
+        scale: 1.06
+    }
+
+};
+
+
+/* ==========================================================
+   COMBAT COLLECTIONS
+========================================================== */
+
+let playerProjectiles = [];
+let hostileProjectiles = [];
+
+let hazards = [];
+let effects = [];
+let constructs = [];
+let illusions = [];
+
+let activeBeam = null;
+let activeScythe = null;
+
+
+/* ==========================================================
+   AIMING
+
+   Mouse + touch/drag ready.
+
+   Forecast itself still DOES NOT move.
+========================================================== */
+
+const aim = {
+    active: false,
+
+    x: 0,
+    y: 0,
+
+    predictedX: 0,
+    predictedY: 0,
+
+    pointerId: null
+};
+
+
+/* ==========================================================
+   SPECIAL STATES
+========================================================== */
+
+const states = {
+    predictionUntil: 0,
+
+    domainUntil: 0,
+    heroismUntil: 0,
+    evolutionUntil: 0,
+    deadlockUntil: 0,
+
+    observeUntil: 0,
+    vectorUntil: 0,
+    momentUntil: 0,
+
+    decoyUntil: 0,
+    decoyX: 0,
+    decoyY: 0
+};
+
+
+const adaptation = {
+    aimedSeen: 0,
+    spreadSeen: 0,
+    heavySeen: 0
+};
+
+
+/* ==========================================================
+   INITIALIZATION
+========================================================== */
+
+function init(element) {
+
+    if (!element) {
+        throw new Error(
+            "Battle.init: gameCanvas was not found."
         );
     }
 
+    canvas = element;
 
-    /* ======================================================
-       PROTAGONIST
-    ====================================================== */
+    ctx =
+        canvas.getContext("2d");
 
-    const enemy = {
-        x: 0,
-        y: 0,
-
-        radius: 10,
-
-        hp: 100,
-        maxHP: 100,
-
-        speed: 120,
-
-        targetX: 0,
-        targetY: 0,
-
-        nextTargetAt: 0,
-        frozenUntil: 0
-    };
-
-
-    /* ======================================================
-       STAMINA
-    ====================================================== */
-
-    const STAMINA_MAX = 100;
-    const STAMINA_REGEN = 16;
-
-    const BASE_DODGE_COST = 12;
-    const DODGE_INVULNERABILITY = 280;
-
-    let stamina = STAMINA_MAX;
-
-    let dodgeChain = 0;
-    let lastDodgeAt = 0;
-
-
-    /* ======================================================
-       COMBAT OBJECTS
-    ====================================================== */
-
-    let forecastProjectiles = [];
-    let enemyProjectiles = [];
-
-    let hazards = [];
-    let effects = [];
-    let illusions = [];
-
-    let beam = null;
-    let scythe = null;
-    let decoy = null;
-
-
-    /* ======================================================
-       SPECIAL STATES
-    ====================================================== */
-
-    let predictionUntil = 0;
-
-    let domainUntil = 0;
-    let heroismUntil = 0;
-    let evolutionUntil = 0;
-    let deadlockUntil = 0;
-
-    let observeUntil = 0;
-    let vectorUntil = 0;
-    let momentUntil = 0;
-
-
-    const adaptation = {
-        aimedShotsSeen: 0,
-        spreadShotsSeen: 0
-    };
-
-
-    /* ======================================================
-       INIT
-    ====================================================== */
-
-    function init(canvasElement) {
-        if (!canvasElement) {
-            throw new Error(
-                "Battle.init: canvas missing"
-            );
-        }
-
-        canvas = canvasElement;
-        ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-            throw new Error(
-                "Battle.init: 2D context unavailable"
-            );
-        }
-
-        ctx.imageSmoothingEnabled = false;
-
-        resize();
-
-        window.addEventListener(
-            "resize",
-            resize
+    if (!ctx) {
+        throw new Error(
+            "Battle.init: Canvas 2D unavailable."
         );
-
-        installEvents();
-
-        reset();
-
-        running = true;
-        lastFrame = performance.now();
-
-        requestAnimationFrame(loop);
     }
 
+    ctx.imageSmoothingEnabled = false;
 
-    /* ======================================================
-       RESPONSIVE LAYOUT
-    ====================================================== */
+    ForecastSprites.load();
 
-    function resize() {
-        if (!canvas) return;
+    installEvents();
 
-        width = window.innerWidth;
-        height = window.innerHeight;
+    resize();
 
-        dpr = Math.min(
+    window.addEventListener(
+        "resize",
+        resize
+    );
+
+    reset();
+
+    running = true;
+
+    lastFrame =
+        performance.now();
+
+    requestAnimationFrame(loop);
+}
+
+
+/* ==========================================================
+   RESPONSIVE BATTLE LAYOUT
+========================================================== */
+
+function resize() {
+
+    if (!canvas) return;
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+    width =
+        Math.max(
+            320,
+            rect.width ||
+            window.innerWidth
+        );
+
+    height =
+        Math.max(
+            420,
+            rect.height ||
+            window.innerHeight
+        );
+
+    dpr =
+        Math.min(
             window.devicePixelRatio || 1,
             2
         );
 
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-
-        ctx.setTransform(
-            dpr,
-            0,
-            0,
-            dpr,
-            0,
-            0
+    canvas.width =
+        Math.round(
+            width * dpr
         );
 
-        const horizontalMargin = Math.max(
-            24,
-            width * 0.09
+    canvas.height =
+        Math.round(
+            height * dpr
         );
 
-        arena.left = horizontalMargin;
-        arena.right = width - horizontalMargin;
+    ctx.setTransform(
+        dpr,
+        0,
+        0,
+        dpr,
+        0,
+        0
+    );
 
-        /*
-            Dedicated space above the battle box
-            for Forecast.
-        */
+    ctx.imageSmoothingEnabled = false;
 
-        arena.top = Math.max(
-            225,
-            height * 0.31
+
+    /*
+        Large upper stage for Forecast.
+
+        Battle box begins BELOW him.
+    */
+
+    const boxWidth =
+        Math.min(
+            width * 0.82,
+            720
         );
 
-        arena.bottom = Math.min(
-            height - 220,
-            arena.top + Math.max(
-                190,
-                height * 0.31
-            )
+    const boxHeight =
+        clamp(
+            height * 0.28,
+            175,
+            300
         );
 
-        if (
-            arena.bottom <
-            arena.top + 150
-        ) {
-            arena.bottom =
-                arena.top + 150;
-        }
+    arena.left =
+        (width - boxWidth) / 2;
 
-        positionForecast();
+    arena.right =
+        arena.left +
+        boxWidth;
 
-        enemy.x = clamp(
-            enemy.x || width * 0.5,
-            arena.left + 25,
-            arena.right - 25
+    arena.top =
+        clamp(
+            height * 0.34,
+            210,
+            340
         );
 
-        enemy.y = clamp(
-            enemy.y ||
-            (
-                arena.top +
-                arena.bottom
-            ) / 2,
-            arena.top + 25,
-            arena.bottom - 25
-        );
-    }
+    arena.bottom =
+        arena.top +
+        boxHeight;
 
 
-    /* ======================================================
-       EVENTS
-    ====================================================== */
-
-    function installEvents() {
-        if (eventsInstalled) return;
-
-        eventsInstalled = true;
-
-        window.addEventListener(
-            "forecast-weapon-fire",
-            event => {
-                useWeapon(
-                    event.detail?.attack
-                );
-            }
-        );
-
-        window.addEventListener(
-            "forecast-eye-activate",
-            event => {
-                useEye(
-                    event.detail || {}
-                );
-            }
-        );
-
-        window.addEventListener(
-            "forecast-technique-activate",
-            event => {
-                useTechnique(
-                    event.detail?.attack
-                );
-            }
-        );
-
-        window.addEventListener(
-            "forecast-phase-change",
-            event => {
-                onPhaseChanged(
-                    event.detail || {}
-                );
-            }
-        );
-    }
-
-
-    /* ======================================================
-       RESET
-    ====================================================== */
-
-    function reset() {
-        const now = performance.now();
-
-        positionForecast();
-
-        forecast.invulnerableUntil = 0;
-
-        playForecastAnimation(
-            "idle",
-            1
-        );
-
-        stamina = STAMINA_MAX;
-
-        dodgeChain = 0;
-        lastDodgeAt = 0;
-
-        enemy.x = width * 0.5;
-
-        enemy.y =
-            arena.top +
-            (
-                arena.bottom -
-                arena.top
-            ) * 0.62;
-
-        enemy.hp = enemy.maxHP;
-        enemy.frozenUntil = 0;
-
-        chooseEnemyTarget();
-
-        forecastProjectiles = [];
-        enemyProjectiles = [];
-
-        hazards = [];
-        effects = [];
-        illusions = [];
-
-        beam = null;
-        scythe = null;
-        decoy = null;
-
-        predictionUntil = 0;
-
-        domainUntil = 0;
-        heroismUntil = 0;
-        evolutionUntil = 0;
-        deadlockUntil = 0;
-
-        observeUntil = 0;
-        vectorUntil = 0;
-        momentUntil = 0;
-
-        adaptation.aimedShotsSeen = 0;
-        adaptation.spreadShotsSeen = 0;
-
-        turn = TURN.FORECAST;
-        turnStarted = now;
-
-        updateEnemyHUD();
-        updateStaminaHUD();
-        updateTurnHUD();
-    }
-
-
-    /* ======================================================
-       MAIN LOOP
-    ====================================================== */
-
-    function loop(now) {
-        if (!running) return;
-
-        let dt =
-            (now - lastFrame) /
-            1000;
-
-        lastFrame = now;
-
-        dt = Math.min(
-            dt,
-            0.04
-        );
-
-        update(
-            dt,
-            now
-        );
-
-        draw(now);
-
-        requestAnimationFrame(loop);
-    }
-
-
-    function update(
-        dt,
-        now
+    if (
+        arena.bottom >
+        height - 130
     ) {
-        updateTurn(now);
-
-        /*
-            Reapply Forecast's FIXED position.
-
-            There is deliberately no velocity,
-            movement input or dodge displacement.
-        */
-
-        positionForecast();
-
-        updateForecastAnimation(now);
-
-        regenerateStamina(
-            dt,
-            now
-        );
-
-        updateEnemy(
-            dt,
-            now
-        );
-
-        updateForecastProjectiles(
-            dt,
-            now
-        );
-
-        updateEnemyProjectiles(
-            dt,
-            now
-        );
-
-        updateHazards(
-            dt,
-            now
-        );
-
-        updateSpecialAttacks(now);
-
-        updateEffects(
-            dt,
-            now
-        );
-
-        updateStaminaHUD();
+        arena.bottom =
+            height - 130;
     }
 
 
-    /* ======================================================
-       TURNS
-    ====================================================== */
-
-    function updateTurn(now) {
-        if (
-            turn === TURN.ENDED
-        ) {
-            return;
-        }
-
-        if (
-            turn === TURN.TRANSITION
-        ) {
-            if (
-                now >= transitionUntil
-            ) {
-                startForecastTurn();
-            }
-
-            return;
-        }
-
-        const elapsed =
-            now - turnStarted;
-
-        if (
-            turn === TURN.FORECAST &&
-            elapsed >= FORECAST_TURN_LENGTH
-        ) {
-            startEnemyTurn();
-        }
-
-        else if (
-            turn === TURN.ENEMY &&
-            elapsed >= ENEMY_TURN_LENGTH
-        ) {
-            startForecastTurn();
-        }
-    }
-
-
-    function startForecastTurn() {
-        if (
-            turn === TURN.ENDED
-        ) {
-            return;
-        }
-
-        turn = TURN.FORECAST;
-
-        turnStarted =
-            performance.now();
-
-        enemyProjectiles = [];
-
-        positionForecast();
-
-        playForecastAnimation(
-            "idle",
-            1
-        );
-
-        updateTurnHUD();
-
-        message(
-            "Your turn. Choose a possibility."
-        );
-    }
-
-
-    function startEnemyTurn() {
-        if (
-            turn === TURN.ENDED
-        ) {
-            return;
-        }
-
-        turn = TURN.ENEMY;
-
-        turnStarted =
-            performance.now();
-
-        forecastProjectiles = [];
-        hazards = [];
-
-        positionForecast();
-
-        updateTurnHUD();
-
-        message(
-            "The protagonist attacks. Auto-dodge engaged."
-        );
-
-        beginEnemyPattern();
-    }
-
-
-    function startTransition() {
-        turn = TURN.TRANSITION;
-
-        transitionUntil =
-            performance.now() +
-            1200;
-
-        enemyProjectiles = [];
-        forecastProjectiles = [];
-        hazards = [];
-
-        positionForecast();
-
-        updateTurnHUD();
-    }
-
-
-    function getTurn() {
-        return turn;
-    }
-
-
-    function isForecastTurn() {
-        return (
-            turn === TURN.FORECAST
-        );
+    if (
+        arena.bottom <
+        arena.top + 150
+    ) {
+        arena.bottom =
+            arena.top + 150;
     }
 
 
     /*
-        Compatibility function.
+        FORECAST'S REAL WORLD POSITION.
 
-        Old game.js can call this all it wants.
-        Forecast WILL NOT MOVE.
+        This is the only normal positioning function
+        for Forecast.
+
+        Auto-dodge NEVER edits these values.
     */
 
-    function setMovement() {}
+    forecast.worldX =
+        width * 0.5;
+
+    forecast.worldY =
+        arena.top - 82;
 
 
-    /* ======================================================
-       STAMINA REGEN
-    ====================================================== */
+    protagonist.x =
+        clamp(
+            protagonist.x ||
+            width * 0.5,
 
-    function regenerateStamina(
-        dt,
-        now
-    ) {
-        const multiplier =
-            turn === TURN.FORECAST
-                ? 1.35
-                : 1;
-
-        stamina = Math.min(
-            STAMINA_MAX,
-
-            stamina +
-            STAMINA_REGEN *
-            multiplier *
-            dt
+            arena.left + 25,
+            arena.right - 25
         );
 
-        if (
-            now - lastDodgeAt >
-            900
-        ) {
-            dodgeChain = 0;
-        }
+    protagonist.y =
+        clamp(
+            protagonist.y ||
+            (
+                arena.top +
+                arena.bottom
+            ) / 2,
 
-        if (
-            stamina <= 20 &&
-            forecast.animation === "idle"
-        ) {
-            playForecastAnimation(
-                "low_stamina",
-                300
-            );
-        }
-    }
-
-
-    /* ======================================================
-       AUTO-DODGE COST
-    ====================================================== */
-
-    function getDodgeCost(now) {
-        let cost =
-            BASE_DODGE_COST +
-            Math.min(
-                dodgeChain * 3,
-                15
-            );
-
-        if (
-            now < evolutionUntil
-        ) {
-            cost *= 0.68;
-        }
-
-        if (
-            adaptation.aimedShotsSeen >= 8
-        ) {
-            cost *= 0.9;
-        }
-
-        if (
-            now < predictionUntil ||
-            now < observeUntil
-        ) {
-            cost *= 0.85;
-        }
-
-        return Math.max(
-            5,
-            Math.round(cost)
+            arena.top + 25,
+            arena.bottom - 25
         );
-    }
+}
 
 
-    /* ======================================================
-       AUTO-DODGE
+/* ==========================================================
+   RESET
+========================================================== */
 
-       Animation changes.
-       Afterimage changes.
-       Stamina changes.
+function reset() {
 
-       Forecast.x DOES NOT.
-       Forecast.y DOES NOT.
-    ====================================================== */
+    const now =
+        performance.now();
 
-    function tryAutoDodge(
-        projectile,
-        now
-    ) {
-        if (
-            turn !== TURN.ENEMY
-        ) {
-            return false;
-        }
+    forecast.stamina =
+        forecast.maxStamina;
 
-        if (
-            now <
-            forecast.invulnerableUntil
-        ) {
-            return true;
-        }
+    forecast.dodgeChain = 0;
+    forecast.lastDodgeAt = 0;
+    forecast.invulnerableUntil = 0;
 
-        if (
-            ForecastPhases.isLocked()
-        ) {
-            return true;
-        }
+    protagonist.hp =
+        protagonist.maxHp;
 
-        const cost =
-            getDodgeCost(now);
+    protagonist.x =
+        width * 0.5;
 
-        if (
-            stamina < cost
-        ) {
-            playForecastAnimation(
-                "exhausted",
-                500
-            );
+    protagonist.y =
+        arena.top +
+        (
+            arena.bottom -
+            arena.top
+        ) * 0.62;
 
-            updateStaminaHUD(
-                "EXHAUSTED — HIT"
-            );
+    protagonist.frozenUntil = 0;
 
-            return false;
-        }
+    chooseProtagonistTarget();
 
-        stamina -= cost;
 
-        dodgeChain++;
+    playerProjectiles = [];
+    hostileProjectiles = [];
 
-        lastDodgeAt = now;
+    hazards = [];
+    effects = [];
+    constructs = [];
+    illusions = [];
 
-        forecast.invulnerableUntil =
-            now +
-            DODGE_INVULNERABILITY;
+    activeBeam = null;
+    activeScythe = null;
 
-        const dodgeAnimation =
-            projectile &&
-            projectile.x <
-            forecast.x
-                ? "dodge_right"
-                : "dodge_left";
 
-        playForecastAnimation(
-            dodgeAnimation,
-            260
-        );
-
-        /*
-            VISUAL afterimage only.
-            This does not alter collision coordinates.
-        */
-
-        effects.push({
-            type: "dodgeAfterimage",
-
-            x: forecast.x,
-            y: forecast.y,
-
-            direction:
-                dodgeAnimation ===
-                "dodge_left"
-                    ? -1
-                    : 1,
-
-            life: 0.28,
-            maxLife: 0.28
+    Object.keys(states)
+        .forEach(key => {
+            states[key] = 0;
         });
 
-        updateStaminaHUD(
-            `AUTO-DODGE -${cost}`
-        );
 
-        return true;
+    adaptation.aimedSeen = 0;
+    adaptation.spreadSeen = 0;
+    adaptation.heavySeen = 0;
+
+
+    aim.active = false;
+    aim.pointerId = null;
+
+    aim.x =
+        protagonist.x;
+
+    aim.y =
+        protagonist.y;
+
+
+    turn =
+        TURN.FORECAST;
+
+    turnStarted = now;
+
+    transitionUntil = 0;
+
+
+    Animation.play(
+        "idle"
+    );
+
+
+    updateEnemyHUD();
+    updateStaminaHUD();
+    updateTurnHUD();
+}
+
+
+/* ==========================================================
+   EVENTS
+========================================================== */
+
+function installEvents() {
+
+    if (eventsInstalled) {
+        return;
     }
 
+    eventsInstalled = true;
 
-    /* ======================================================
-       PROTAGONIST AI
-    ====================================================== */
 
-    function chooseEnemyTarget() {
-        enemy.targetX = random(
-            arena.left + 35,
-            arena.right - 35
-        );
+    window.addEventListener(
+        "forecast-weapon-fire",
+        event => {
 
-        enemy.targetY = random(
-            arena.top + 35,
-            arena.bottom - 35
-        );
-
-        enemy.nextTargetAt =
-            performance.now() +
-            random(
-                500,
-                1100
+            fireWeapon(
+                event.detail?.attack
             );
+
+        }
+    );
+
+
+    window.addEventListener(
+        "forecast-technique-activate",
+        event => {
+
+            activateTechnique(
+                event.detail?.attack
+            );
+
+        }
+    );
+
+
+    window.addEventListener(
+        "forecast-eye-activate",
+        event => {
+
+            activateEye(
+                event.detail || {}
+            );
+
+        }
+    );
+
+
+    window.addEventListener(
+        "forecast-phase-change",
+        event => {
+
+            handlePhaseChange(
+                event.detail || {}
+            );
+
+        }
+    );
+
+
+    /*
+        AIM INPUT
+    */
+
+    canvas.addEventListener(
+        "pointerdown",
+        pointerDown
+    );
+
+    canvas.addEventListener(
+        "pointermove",
+        pointerMove
+    );
+
+    canvas.addEventListener(
+        "pointerup",
+        pointerUp
+    );
+
+    canvas.addEventListener(
+        "pointercancel",
+        pointerUp
+    );
+}
+
+
+/* ==========================================================
+   POINTER AIM
+========================================================== */
+
+function pointerPosition(event) {
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+    return {
+        x:
+            (
+                event.clientX -
+                rect.left
+            ) *
+            (
+                width /
+                rect.width
+            ),
+
+        y:
+            (
+                event.clientY -
+                rect.top
+            ) *
+            (
+                height /
+                rect.height
+            )
+    };
+}
+
+
+function pointerDown(event) {
+
+    if (
+        turn !== TURN.FORECAST
+    ) {
+        return;
     }
 
+    const point =
+        pointerPosition(event);
 
-    function updateEnemy(
-        dt,
-        now
+    aim.active = true;
+    aim.pointerId =
+        event.pointerId;
+
+    aim.x = point.x;
+    aim.y = point.y;
+
+    updatePredictedAim();
+
+    try {
+        canvas.setPointerCapture(
+            event.pointerId
+        );
+    }
+    catch (_) {}
+}
+
+
+function pointerMove(event) {
+
+    if (
+        !aim.active ||
+        aim.pointerId !==
+        event.pointerId
     ) {
-        if (
-            now <
-            enemy.frozenUntil
-        ) {
-            return;
-        }
+        return;
+    }
 
-        if (
-            now >=
-            enemy.nextTargetAt
-        ) {
-            chooseEnemyTarget();
-        }
+    const point =
+        pointerPosition(event);
 
-        let speedMultiplier = 1;
+    aim.x = point.x;
+    aim.y = point.y;
 
-        if (
-            now < deadlockUntil
-        ) {
-            speedMultiplier *= 0.25;
-        }
+    updatePredictedAim();
+}
 
-        if (
-            now < momentUntil
-        ) {
-            speedMultiplier *= 0.32;
-        }
 
-        if (
-            now < domainUntil
-        ) {
-            speedMultiplier *= 0.68;
-        }
+function pointerUp(event) {
 
-        const dx =
-            enemy.targetX -
-            enemy.x;
+    if (
+        aim.pointerId !==
+        event.pointerId
+    ) {
+        return;
+    }
 
-        const dy =
-            enemy.targetY -
-            enemy.y;
+    aim.active = false;
+    aim.pointerId = null;
+}
 
-        const distance =
-            Math.hypot(
-                dx,
-                dy
-            ) || 1;
 
-        enemy.x +=
+/* ==========================================================
+   FUTURE POSITION PREDICTION
+========================================================== */
+
+function updatePredictedAim() {
+
+    const dx =
+        protagonist.targetX -
+        protagonist.x;
+
+    const dy =
+        protagonist.targetY -
+        protagonist.y;
+
+    const distance =
+        Math.hypot(
+            dx,
+            dy
+        ) || 1;
+
+    const leadDistance = 45;
+
+    aim.predictedX =
+        clamp(
+            protagonist.x +
             (
                 dx /
                 distance
             ) *
-            enemy.speed *
-            speedMultiplier *
-            dt;
+            leadDistance,
 
-        enemy.y +=
+            arena.left + 15,
+            arena.right - 15
+        );
+
+    aim.predictedY =
+        clamp(
+            protagonist.y +
             (
                 dy /
                 distance
             ) *
-            enemy.speed *
-            speedMultiplier *
-            dt;
+            leadDistance,
 
-        enemy.x = clamp(
-            enemy.x,
-            arena.left + 18,
-            arena.right - 18
+            arena.top + 15,
+            arena.bottom - 15
+        );
+}
+
+
+/* ==========================================================
+   LOOP
+========================================================== */
+
+function loop(now) {
+
+    if (!running) {
+        return;
+    }
+
+    let dt =
+        (
+            now -
+            lastFrame
+        ) /
+        1000;
+
+    lastFrame = now;
+
+    dt =
+        Math.min(
+            dt,
+            0.04
         );
 
-        enemy.y = clamp(
-            enemy.y,
-            arena.top + 18,
-            arena.bottom - 18
-        );
-    }
-
-
-    /* ======================================================
-       PROTAGONIST ATTACK
-    ====================================================== */
-
-    function beginEnemyPattern() {
-        const phaseIndex =
-            ForecastPhases.getPhaseIndex();
-
-        const shotCount =
-            Math.min(
-                4 + phaseIndex,
-                12
-            );
-
-        for (
-            let i = 0;
-            i < shotCount;
-            i++
-        ) {
-            setTimeout(
-                () => {
-                    if (
-                        turn ===
-                        TURN.ENEMY
-                    ) {
-                        spawnEnemyShot(i);
-                    }
-                },
-
-                300 +
-                i * 430
-            );
-        }
-    }
-
-
-    function spawnEnemyShot(index = 0) {
-        let targetX =
-            forecast.x;
-
-        let targetY =
-            forecast.y;
-
-        if (
-            decoy &&
-            performance.now() <
-            decoy.until &&
-            Math.random() < 0.7
-        ) {
-            targetX =
-                decoy.x;
-
-            targetY =
-                decoy.y;
-        }
-
-        const dx =
-            targetX -
-            enemy.x;
-
-        const dy =
-            targetY -
-            enemy.y;
-
-        const distance =
-            Math.hypot(
-                dx,
-                dy
-            ) || 1;
-
-        const speed =
-            255 +
-            ForecastPhases
-                .getPhaseIndex() *
-            8;
-
-        enemyProjectiles.push({
-            x: enemy.x,
-            y: enemy.y,
-
-            vx:
-                (
-                    dx /
-                    distance
-                ) *
-                speed,
-
-            vy:
-                (
-                    dy /
-                    distance
-                ) *
-                speed,
-
-            radius:
-                index % 4 === 3
-                    ? 8
-                    : 6,
-
-            life: 4,
-
-            type:
-                index % 4 === 3
-                    ? "heavy"
-                    : "aimed"
-        });
-
-        adaptation
-            .aimedShotsSeen++;
-    }
-
-
-    function updateEnemyProjectiles(
+    update(
         dt,
         now
+    );
+
+    render(now);
+
+    requestAnimationFrame(loop);
+}
+
+
+/* ==========================================================
+   UPDATE
+========================================================== */
+
+function update(
+    dt,
+    now
+) {
+
+    /*
+        Absolute guarantee:
+
+        Forecast is snapped to the boss position
+        every frame.
+
+        No dodge can physically move him.
+    */
+
+    forecast.worldX =
+        width * 0.5;
+
+    forecast.worldY =
+        arena.top - 82;
+
+
+    updateTurn(now);
+
+    Animation.update(now);
+
+    updateStamina(
+        dt,
+        now
+    );
+
+    updateProtagonist(
+        dt,
+        now
+    );
+
+    updatePredictedAim();
+
+    updatePlayerProjectiles(
+        dt,
+        now
+    );
+
+    updateHostileProjectiles(
+        dt,
+        now
+    );
+
+    updateHazards(
+        dt,
+        now
+    );
+
+    updateConstructs(
+        dt,
+        now
+    );
+
+    updateSpecialAttacks(
+        dt,
+        now
+    );
+
+    updateEffects(dt);
+
+    cleanupTemporaryObjects(now);
+
+    updateStaminaHUD();
+}
+
+
+/* ==========================================================
+   TURN FLOW
+========================================================== */
+
+function updateTurn(now) {
+
+    if (
+        turn === TURN.ENDED
     ) {
-        const timeScale =
-            now < momentUntil
-                ? 0.32
-                : 1;
-
-        for (
-            let i =
-                enemyProjectiles.length - 1;
-
-            i >= 0;
-
-            i--
-        ) {
-            const projectile =
-                enemyProjectiles[i];
-
-            if (!projectile) {
-                enemyProjectiles.splice(
-                    i,
-                    1
-                );
-
-                continue;
-            }
-
-            projectile.x +=
-                projectile.vx *
-                dt *
-                timeScale;
-
-            projectile.y +=
-                projectile.vy *
-                dt *
-                timeScale;
-
-            projectile.life -=
-                dt *
-                timeScale;
-
-            /*
-                DO NOT destroy projectiles at arena.top.
-
-                Forecast is ABOVE arena.top,
-                so protagonist shots must be allowed
-                to travel into boss space.
-            */
-
-            if (
-                projectile.life <= 0 ||
-                projectile.x < -100 ||
-                projectile.x >
-                    width + 100 ||
-                projectile.y < -100 ||
-                projectile.y >
-                    height + 100
-            ) {
-                enemyProjectiles.splice(
-                    i,
-                    1
-                );
-
-                continue;
-            }
-
-            if (
-                circlesTouch(
-                    projectile.x,
-                    projectile.y,
-                    projectile.radius,
-
-                    forecast.x,
-                    forecast.y,
-                    forecast.radius
-                )
-            ) {
-                const dodged =
-                    tryAutoDodge(
-                        projectile,
-                        now
-                    );
-
-                enemyProjectiles.splice(
-                    i,
-                    1
-                );
-
-                if (!dodged) {
-                    hitForecast(now);
-                    return;
-                }
-            }
-        }
+        return;
     }
 
 
-    /* ======================================================
-       FORECAST HIT / PHASE ADVANCEMENT
-    ====================================================== */
-
-    function hitForecast(now) {
-        if (
-            turn !== TURN.ENEMY
-        ) {
-            return;
-        }
+    if (
+        turn === TURN.TRANSITION
+    ) {
 
         if (
-            now <
-            forecast.invulnerableUntil
+            now >= transitionUntil
         ) {
-            return;
+            startForecastTurn();
         }
 
-        if (
-            ForecastPhases.isLocked()
-        ) {
-            return;
-        }
+        return;
+    }
 
-        forecast.invulnerableUntil =
-            now + 1300;
 
-        playForecastAnimation(
-            "hit",
-            350
+    const elapsed =
+        now -
+        turnStarted;
+
+
+    if (
+        turn === TURN.FORECAST &&
+        elapsed >=
+        FORECAST_TURN_MS
+    ) {
+        startProtagonistTurn();
+    }
+
+
+    else if (
+        turn === TURN.PROTAGONIST &&
+        elapsed >=
+        PROTAGONIST_TURN_MS
+    ) {
+        startForecastTurn();
+    }
+}
+
+
+function startForecastTurn() {
+
+    if (
+        turn === TURN.ENDED
+    ) {
+        return;
+    }
+
+    turn =
+        TURN.FORECAST;
+
+    turnStarted =
+        performance.now();
+
+    hostileProjectiles = [];
+
+    aim.active = false;
+
+    Animation.play(
+        "idle"
+    );
+
+    updateTurnHUD();
+
+    message(
+        "Your turn. The future is visible."
+    );
+}
+
+
+function startProtagonistTurn() {
+
+    if (
+        turn === TURN.ENDED
+    ) {
+        return;
+    }
+
+    turn =
+        TURN.PROTAGONIST;
+
+    turnStarted =
+        performance.now();
+
+    playerProjectiles = [];
+    hazards = [];
+
+    aim.active = false;
+
+    Animation.play(
+        "idle"
+    );
+
+    updateTurnHUD();
+
+    message(
+        "Protagonist turn. AUTO-DODGE ACTIVE."
+    );
+
+    startProtagonistAttackPattern();
+}
+
+
+function startPhaseTransition() {
+
+    turn =
+        TURN.TRANSITION;
+
+    transitionUntil =
+        performance.now() +
+        1200;
+
+    hostileProjectiles = [];
+    playerProjectiles = [];
+    hazards = [];
+
+    aim.active = false;
+
+    Animation.play(
+        "phase_change",
+        950
+    );
+
+    updateTurnHUD();
+}
+
+
+/* ==========================================================
+   STAMINA / AUTO-DODGE
+========================================================== */
+
+const BASE_DODGE_COST = 12;
+const STAMINA_REGEN = 16;
+const DODGE_INVULNERABILITY = 290;
+
+
+function updateStamina(
+    dt,
+    now
+) {
+
+    const regenMultiplier =
+        turn === TURN.FORECAST
+            ? 1.35
+            : 1;
+
+    forecast.stamina =
+        Math.min(
+            forecast.maxStamina,
+
+            forecast.stamina +
+            STAMINA_REGEN *
+            regenMultiplier *
+            dt
         );
 
-        const result =
-            ForecastPhases
-                .confirmedHit();
 
-        if (
-            result &&
-            result.advanced
-        ) {
-            stamina =
-                Math.min(
-                    STAMINA_MAX,
-                    stamina + 22
-                );
-
-            startTransition();
-        }
-
-        else if (
-            result &&
-            result.reason ===
-                "final-phase"
-        ) {
-            message(
-                "Phase 5 holds."
-            );
-
-            enemyProjectiles = [];
-        }
-    }
-
-
-    /* ======================================================
-       WEAPON DEFINITIONS
-
-       Different weapons now create DIFFERENT
-       projectile types instead of recolored circles.
-    ====================================================== */
-
-    const SHOT_TYPES = {
-        glock: {
-            speed: 570,
-            damage: 12,
-            radius: 3,
-            type: "glockBullet"
-        },
-
-        smg: {
-            speed: 540,
-            damage: 4,
-            radius: 2,
-            type: "smgBullet"
-        },
-
-        ar: {
-            speed: 650,
-            damage: 7,
-            radius: 3,
-            type: "arTracer"
-        },
-
-        dmr: {
-            speed: 900,
-            damage: 21,
-            radius: 4,
-            type: "dmrRound"
-        }
-    };
-
-
-    /* ======================================================
-       WEAPON FIRING
-    ====================================================== */
-
-    function useWeapon(type) {
-        if (
-            !type ||
-            !isForecastTurn()
-        ) {
-            return;
-        }
-
-        switch (type) {
-
-            case "glock":
-                playForecastAnimation(
-                    "glock_fire",
-                    180
-                );
-
-                fireAtEnemy(
-                    SHOT_TYPES.glock
-                );
-                break;
-
-
-            case "smg":
-                playForecastAnimation(
-                    "smg_fire",
-                    500
-                );
-
-                fireBurst(
-                    7,
-                    65,
-                    SHOT_TYPES.smg,
-                    0.025
-                );
-                break;
-
-
-            case "ar":
-                playForecastAnimation(
-                    "ar_fire",
-                    420
-                );
-
-                fireBurst(
-                    4,
-                    105,
-                    SHOT_TYPES.ar,
-                    0.012
-                );
-                break;
-
-
-            case "dmr":
-                playForecastAnimation(
-                    "dmr_fire",
-                    350
-                );
-
-                effects.push({
-                    type: "predictionLine",
-
-                    x: forecast.x,
-                    y: forecast.y,
-
-                    targetX:
-                        enemy.x,
-
-                    targetY:
-                        enemy.y,
-
-                    life: 0.22,
-                    maxLife: 0.22
-                });
-
-                setTimeout(
-                    () => {
-                        if (
-                            turn ===
-                            TURN.FORECAST
-                        ) {
-                            fireAtEnemy(
-                                SHOT_TYPES.dmr
-                            );
-                        }
-                    },
-
-                    180
-                );
-                break;
-
-
-            case "shotgun":
-                playForecastAnimation(
-                    "shotgun_fire",
-                    350
-                );
-
-                fireShotgun();
-                break;
-
-
-            case "gasterHand":
-                playForecastAnimation(
-                    "gaster_charge",
-                    350
-                );
-
-                setTimeout(
-                    () => {
-                        if (
-                            turn !==
-                            TURN.FORECAST
-                        ) {
-                            return;
-                        }
-
-                        playForecastAnimation(
-                            "gaster_fire",
-                            520
-                        );
-
-                        createBeam(
-                            0,
-                            520,
-                            28
-                        );
-                    },
-
-                    350
-                );
-                break;
-
-
-            case "scythe":
-                playForecastAnimation(
-                    "scythe_summon",
-                    220
-                );
-
-                setTimeout(
-                    () => {
-                        if (
-                            turn !==
-                            TURN.FORECAST
-                        ) {
-                            return;
-                        }
-
-                        playForecastAnimation(
-                            "scythe_swing",
-                            600
-                        );
-
-                        const now =
-                            performance.now();
-
-                        scythe = {
-                            started: now,
-                            until:
-                                now + 600,
-
-                            damage: 28,
-                            hit: false
-                        };
-                    },
-
-                    200
-                );
-                break;
-        }
-    }
-
-
-    function fireAtEnemy(
-        config,
-        angleOffset = 0
+    if (
+        now -
+        forecast.lastDodgeAt >
+        900
     ) {
+        forecast.dodgeChain = 0;
+    }
+
+
+    if (
+        forecast.stamina <= 20 &&
+        Animation.getName() ===
+        "idle"
+    ) {
+        Animation.play(
+            "low_stamina",
+            350
+        );
+    }
+}
+
+
+function getDodgeCost(now) {
+
+    let cost =
+        BASE_DODGE_COST +
+        Math.min(
+            forecast.dodgeChain * 3,
+            15
+        );
+
+
+    if (
+        now <
+        states.evolutionUntil
+    ) {
+        cost *= 0.67;
+    }
+
+
+    if (
+        adaptation.aimedSeen >= 7
+    ) {
+        cost *= 0.90;
+    }
+
+
+    if (
+        now <
+            states.predictionUntil ||
+        now <
+            states.observeUntil
+    ) {
+        cost *= 0.84;
+    }
+
+
+    return Math.max(
+        5,
+        Math.round(cost)
+    );
+}
+
+
+/* ==========================================================
+   STATIONARY AUTO-DODGE
+
+   Animation != movement.
+========================================================== */
+
+function attemptAutoDodge(
+    projectile,
+    now
+) {
+
+    if (
+        turn !==
+        TURN.PROTAGONIST
+    ) {
+        return false;
+    }
+
+
+    if (
+        now <
+        forecast.invulnerableUntil
+    ) {
+        return true;
+    }
+
+
+    if (
+        ForecastPhases.isLocked()
+    ) {
+        return true;
+    }
+
+
+    const cost =
+        getDodgeCost(now);
+
+
+    if (
+        forecast.stamina <
+        cost
+    ) {
+
+        Animation.play(
+            "exhausted",
+            450
+        );
+
+        updateStaminaHUD(
+            "EXHAUSTED"
+        );
+
+        return false;
+    }
+
+
+    forecast.stamina -= cost;
+
+    forecast.dodgeChain++;
+
+    forecast.lastDodgeAt = now;
+
+    forecast.invulnerableUntil =
+        now +
+        DODGE_INVULNERABILITY;
+
+
+    /*
+        Choose animation according to incoming vector.
+
+        STILL NO POSITION CHANGE.
+    */
+
+    const horizontal =
+        Math.abs(
+            projectile.vx || 0
+        );
+
+    const vertical =
+        Math.abs(
+            projectile.vy || 0
+        );
+
+
+    let dodgeAnimation;
+
+
+    if (
+        vertical >
+        horizontal * 1.4
+    ) {
+
+        dodgeAnimation =
+            projectile.vy > 0
+                ? "dodge_left"
+                : "dodge_down";
+
+    }
+
+    else {
+
+        dodgeAnimation =
+            projectile.x <
+            forecast.worldX
+                ? "dodge_right"
+                : "dodge_left";
+
+    }
+
+
+    Animation.play(
+        dodgeAnimation,
+        280
+    );
+
+
+    effects.push({
+        type: "dodge_afterimage",
+
+        x: forecast.worldX,
+        y: forecast.worldY,
+
+        animation:
+            dodgeAnimation,
+
+        life: 0.30,
+        maxLife: 0.30
+    });
+
+
+    effects.push({
+        type: "dodge_flash",
+
+        x: forecast.worldX,
+        y: forecast.worldY,
+
+        life: 0.18,
+        maxLife: 0.18
+    });
+
+
+    updateStaminaHUD(
+        `AUTO-DODGE -${cost}`
+    );
+
+
+    return true;
+}
+
+
+/* ==========================================================
+   PROTAGONIST AI
+========================================================== */
+
+function chooseProtagonistTarget() {
+
+    protagonist.targetX =
+        random(
+            arena.left + 30,
+            arena.right - 30
+        );
+
+    protagonist.targetY =
+        random(
+            arena.top + 30,
+            arena.bottom - 30
+        );
+
+    protagonist.nextTargetAt =
+        performance.now() +
+        random(
+            450,
+            1050
+        );
+}
+
+
+function updateProtagonist(
+    dt,
+    now
+) {
+
+    if (
+        now <
+        protagonist.frozenUntil
+    ) {
+        return;
+    }
+
+
+    if (
+        now >=
+        protagonist.nextTargetAt
+    ) {
+        chooseProtagonistTarget();
+    }
+
+
+    let multiplier = 1;
+
+
+    if (
+        now <
+        states.deadlockUntil
+    ) {
+        multiplier *= 0.28;
+    }
+
+
+    if (
+        now <
+        states.domainUntil
+    ) {
+        multiplier *= 0.66;
+    }
+
+
+    if (
+        now <
+        states.momentUntil
+    ) {
+        multiplier *= 0.32;
+    }
+
+
+    const dx =
+        protagonist.targetX -
+        protagonist.x;
+
+    const dy =
+        protagonist.targetY -
+        protagonist.y;
+
+    const distance =
+        Math.hypot(
+            dx,
+            dy
+        ) || 1;
+
+
+    protagonist.x +=
+        (
+            dx /
+            distance
+        ) *
+        protagonist.speed *
+        multiplier *
+        dt;
+
+
+    protagonist.y +=
+        (
+            dy /
+            distance
+        ) *
+        protagonist.speed *
+        multiplier *
+        dt;
+
+
+    protagonist.x =
+        clamp(
+            protagonist.x,
+
+            arena.left +
+            protagonist.radius,
+
+            arena.right -
+            protagonist.radius
+        );
+
+
+    protagonist.y =
+        clamp(
+            protagonist.y,
+
+            arena.top +
+            protagonist.radius,
+
+            arena.bottom -
+            protagonist.radius
+        );
+}
+
+
+/* ==========================================================
+   PROTAGONIST ATTACK SYSTEM
+
+   Different attack patterns will be created here.
+========================================================== */
+
+function startProtagonistAttackPattern() {
+
+    const phaseIndex =
+        ForecastPhases
+            .getPhaseIndex();
+
+    const count =
+        Math.min(
+            5 + phaseIndex,
+            13
+        );
+
+
+    for (
+        let i = 0;
+        i < count;
+        i++
+    ) {
+
+        setTimeout(
+            () => {
+
+                if (
+                    turn !==
+                    TURN.PROTAGONIST
+                ) {
+                    return;
+                }
+
+                spawnHostileAttack(
+                    i,
+                    phaseIndex
+                );
+
+            },
+
+            250 +
+            i * 390
+        );
+
+    }
+}
+
+
+function spawnHostileAttack(
+    index,
+    phaseIndex
+) {
+
+    /*
+        Later phases vary the incoming pattern.
+    */
+
+    if (
+        phaseIndex >= 4 &&
+        index % 4 === 3
+    ) {
+
+        spawnHostileSpread();
+
+        adaptation.spreadSeen++;
+
+        return;
+    }
+
+
+    if (
+        phaseIndex >= 6 &&
+        index % 5 === 4
+    ) {
+
+        spawnHostileHeavy();
+
+        adaptation.heavySeen++;
+
+        return;
+    }
+
+
+    spawnHostileAimed();
+
+    adaptation.aimedSeen++;
+}
+
+
+function hostileTarget() {
+
+    if (
+        performance.now() <
+        states.decoyUntil
+    ) {
+
+        return {
+            x:
+                states.decoyX,
+
+            y:
+                states.decoyY
+        };
+
+    }
+
+
+    return {
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY
+    };
+}
+
+
+function spawnHostileAimed() {
+
+    const target =
+        hostileTarget();
+
+    const dx =
+        target.x -
+        protagonist.x;
+
+    const dy =
+        target.y -
+        protagonist.y;
+
+    const distance =
+        Math.hypot(
+            dx,
+            dy
+        ) || 1;
+
+    const speed = 285;
+
+
+    hostileProjectiles.push({
+
+        type:
+            "protagonist_aimed",
+
+        x:
+            protagonist.x,
+
+        y:
+            protagonist.y,
+
+        vx:
+            (
+                dx /
+                distance
+            ) *
+            speed,
+
+        vy:
+            (
+                dy /
+                distance
+            ) *
+            speed,
+
+        radius: 6,
+
+        life: 4
+
+    });
+}
+
+
+function spawnHostileSpread() {
+
+    const target =
+        hostileTarget();
+
+    const baseAngle =
+        Math.atan2(
+            target.y -
+            protagonist.y,
+
+            target.x -
+            protagonist.x
+        );
+
+
+    for (
+        let i = -1;
+        i <= 1;
+        i++
+    ) {
+
         const angle =
-            Math.atan2(
-                enemy.y -
-                forecast.y,
+            baseAngle +
+            i * 0.12;
 
-                enemy.x -
-                forecast.x
-            ) +
-            angleOffset;
+        const speed =
+            270;
 
-        forecastProjectiles.push({
-            x: forecast.x,
-            y: forecast.y,
+
+        hostileProjectiles.push({
+
+            type:
+                "protagonist_spread",
+
+            x:
+                protagonist.x,
+
+            y:
+                protagonist.y,
 
             vx:
                 Math.cos(angle) *
-                config.speed,
+                speed,
 
             vy:
                 Math.sin(angle) *
-                config.speed,
+                speed,
 
-            damage:
-                config.damage,
+            radius: 5,
 
-            radius:
-                config.radius,
+            life: 4
 
-            type:
-                config.type,
-
-            life: 2.5
         });
+
+    }
+}
+
+
+function spawnHostileHeavy() {
+
+    const target =
+        hostileTarget();
+
+    const angle =
+        Math.atan2(
+            target.y -
+            protagonist.y,
+
+            target.x -
+            protagonist.x
+        );
+
+
+    hostileProjectiles.push({
+
+        type:
+            "protagonist_heavy",
+
+        x:
+            protagonist.x,
+
+        y:
+            protagonist.y,
+
+        vx:
+            Math.cos(angle) *
+            220,
+
+        vy:
+            Math.sin(angle) *
+            220,
+
+        radius: 10,
+
+        life: 5
+
+    });
+}
+
+
+/* ==========================================================
+   HOSTILE PROJECTILE UPDATE
+========================================================== */
+
+function updateHostileProjectiles(
+    dt,
+    now
+) {
+
+    const timeScale =
+        now <
+        states.momentUntil
+            ? 0.32
+            : 1;
+
+
+    for (
+        let i =
+            hostileProjectiles.length - 1;
+
+        i >= 0;
+
+        i--
+    ) {
+
+        const projectile =
+            hostileProjectiles[i];
+
+
+        if (!projectile) {
+
+            hostileProjectiles.splice(
+                i,
+                1
+            );
+
+            continue;
+        }
+
+
+        projectile.x +=
+            projectile.vx *
+            dt *
+            timeScale;
+
+        projectile.y +=
+            projectile.vy *
+            dt *
+            timeScale;
+
+        projectile.life -=
+            dt *
+            timeScale;
+
+
+        if (
+            projectile.life <= 0 ||
+            projectile.x < -100 ||
+            projectile.x >
+                width + 100 ||
+            projectile.y < -100 ||
+            projectile.y >
+                height + 100
+        ) {
+
+            hostileProjectiles.splice(
+                i,
+                1
+            );
+
+            continue;
+        }
+
+
+        /*
+            Collision happens at Forecast's
+            FIXED world position.
+        */
+
+        if (
+            circlesTouch(
+
+                projectile.x,
+                projectile.y,
+                projectile.radius,
+
+                forecast.worldX,
+                forecast.worldY,
+                forecast.collisionRadius
+
+            )
+        ) {
+
+            const dodged =
+                attemptAutoDodge(
+                    projectile,
+                    now
+                );
+
+
+            hostileProjectiles.splice(
+                i,
+                1
+            );
+
+
+            if (!dodged) {
+                confirmForecastHit(now);
+                return;
+            }
+        }
+    }
+}
+
+
+/* ==========================================================
+   EXACT PHASE PROGRESSION
+
+   1
+   HIT -> 1.5
+   HIT -> 2
+   HIT -> 2.5
+   HIT -> 3
+   HIT -> 3.5
+   HIT -> 4
+   HIT -> 4.5
+   HIT -> 5
+========================================================== */
+
+function confirmForecastHit(now) {
+
+    if (
+        turn !==
+        TURN.PROTAGONIST
+    ) {
+        return;
     }
 
 
-    function fireBurst(
-        count,
-        gap,
-        config,
-        spread
+    if (
+        now <
+        forecast.invulnerableUntil
     ) {
-        for (
-            let i = 0;
-            i < count;
-            i++
-        ) {
+        return;
+    }
+
+
+    if (
+        ForecastPhases.isLocked()
+    ) {
+        return;
+    }
+
+
+    forecast.invulnerableUntil =
+        now + 1300;
+
+
+    Animation.play(
+        "hit",
+        300
+    );
+
+
+    const result =
+        ForecastPhases
+            .confirmedHit();
+
+
+    if (
+        result?.advanced
+    ) {
+
+        forecast.stamina =
+            Math.min(
+                forecast.maxStamina,
+
+                forecast.stamina +
+                20
+            );
+
+
+        startPhaseTransition();
+
+        return;
+    }
+
+
+    if (
+        result?.reason ===
+        "final-phase"
+    ) {
+
+        hostileProjectiles = [];
+
+        message(
+            "Phase 5 holds."
+        );
+    }
+}
+
+
+/* ==========================================================
+   PLAYER PROJECTILE FACTORY
+
+   Weapons are deliberately separate visual types.
+========================================================== */
+
+function createPlayerProjectile({
+    type,
+
+    x =
+        forecast.worldX,
+
+    y =
+        forecast.worldY,
+
+    targetX,
+    targetY,
+
+    speed,
+    damage,
+    radius,
+
+    angleOffset = 0,
+
+    life = 3
+}) {
+
+    const angle =
+        Math.atan2(
+            targetY - y,
+            targetX - x
+        ) +
+        angleOffset;
+
+
+    playerProjectiles.push({
+
+        type,
+
+        x,
+        y,
+
+        vx:
+            Math.cos(angle) *
+            speed,
+
+        vy:
+            Math.sin(angle) *
+            speed,
+
+        damage,
+        radius,
+        life,
+
+        trail: []
+    });
+}
+
+
+/* ==========================================================
+   AIM TARGET
+
+   When not manually dragging, Forecast predicts the
+   protagonist automatically.
+========================================================== */
+
+function getAttackTarget() {
+
+    if (aim.active) {
+
+        return {
+            x: aim.x,
+            y: aim.y
+        };
+
+    }
+
+
+    if (
+        performance.now() <
+            states.predictionUntil ||
+        performance.now() <
+            states.observeUntil
+    ) {
+
+        return {
+            x:
+                aim.predictedX,
+
+            y:
+                aim.predictedY
+        };
+
+    }
+
+
+    return {
+        x:
+            protagonist.x,
+
+        y:
+            protagonist.y
+    };
+}
+
+
+/* ==========================================================
+   WEAPONS
+
+   GLOCK
+   SMG
+   AR
+   DMR
+   SHOTGUN
+   GASTER HAND
+   EXECUTION SCYTHE
+========================================================== */
+
+function fireWeapon(type) {
+
+    if (
+        turn !== TURN.FORECAST ||
+        !type
+    ) {
+        return;
+    }
+
+
+    const target =
+        getAttackTarget();
+
+
+    switch (type) {
+
+        /* --------------------------------------------------
+           GLOCK
+
+           One small, fast, visible pixel bullet.
+        -------------------------------------------------- */
+
+        case "glock":
+
+            Animation.play(
+                "glock_fire",
+                260
+            );
+
+            createMuzzleFlash(
+                "small"
+            );
+
+            createPlayerProjectile({
+                type:
+                    "glock_bullet",
+
+                targetX:
+                    target.x,
+
+                targetY:
+                    target.y,
+
+                speed: 620,
+                damage: 12,
+                radius: 3
+            });
+
+            break;
+
+
+        /* --------------------------------------------------
+           SMG
+
+           Rapid small stream.
+        -------------------------------------------------- */
+
+        case "smg":
+
+            Animation.play(
+                "smg_fire",
+                620
+            );
+
+            for (
+                let i = 0;
+                i < 8;
+                i++
+            ) {
+
+                setTimeout(
+                    () => {
+
+                        if (
+                            turn !==
+                            TURN.FORECAST
+                        ) {
+                            return;
+                        }
+
+                        createMuzzleFlash(
+                            "rapid"
+                        );
+
+                        createPlayerProjectile({
+                            type:
+                                "smg_bullet",
+
+                            targetX:
+                                getAttackTarget().x,
+
+                            targetY:
+                                getAttackTarget().y,
+
+                            speed: 560,
+                            damage: 4,
+                            radius: 2,
+
+                            angleOffset:
+                                random(
+                                    -0.035,
+                                    0.035
+                                )
+                        });
+
+                    },
+
+                    i * 60
+                );
+
+            }
+
+            break;
+
+
+        /* --------------------------------------------------
+           AR
+
+           Heavier burst with long tracers.
+        -------------------------------------------------- */
+
+        case "ar":
+
+            Animation.play(
+                "ar_fire",
+                520
+            );
+
+            for (
+                let i = 0;
+                i < 4;
+                i++
+            ) {
+
+                setTimeout(
+                    () => {
+
+                        if (
+                            turn !==
+                            TURN.FORECAST
+                        ) {
+                            return;
+                        }
+
+                        createMuzzleFlash(
+                            "rifle"
+                        );
+
+                        const currentTarget =
+                            getAttackTarget();
+
+                        createPlayerProjectile({
+                            type:
+                                "ar_round",
+
+                            targetX:
+                                currentTarget.x,
+
+                            targetY:
+                                currentTarget.y,
+
+                            speed: 690,
+                            damage: 7,
+                            radius: 3,
+
+                            angleOffset:
+                                random(
+                                    -0.015,
+                                    0.015
+                                )
+                        });
+
+                    },
+
+                    i * 105
+                );
+
+            }
+
+            break;
+
+
+        /* --------------------------------------------------
+           DMR
+
+           Prediction line -> precision round.
+        -------------------------------------------------- */
+
+        case "dmr":
+
+            Animation.play(
+                "dmr_fire",
+                450
+            );
+
+            effects.push({
+                type:
+                    "dmr_prediction",
+
+                x:
+                    forecast.worldX,
+
+                y:
+                    forecast.worldY,
+
+                targetX:
+                    target.x,
+
+                targetY:
+                    target.y,
+
+                life: 0.24,
+                maxLife: 0.24
+            });
+
+
             setTimeout(
                 () => {
+
                     if (
                         turn !==
                         TURN.FORECAST
@@ -1608,378 +2548,970 @@ const Battle = (() => {
                         return;
                     }
 
-                    fireAtEnemy(
-                        config,
-                        random(
-                            -spread,
-                            spread
-                        )
+                    createMuzzleFlash(
+                        "precision"
                     );
+
+                    const currentTarget =
+                        getAttackTarget();
+
+                    createPlayerProjectile({
+                        type:
+                            "dmr_round",
+
+                        targetX:
+                            currentTarget.x,
+
+                        targetY:
+                            currentTarget.y,
+
+                        speed: 980,
+                        damage: 21,
+                        radius: 4
+                    });
+
                 },
 
-                i * gap
+                180
             );
-        }
-    }
+
+            break;
 
 
-    function fireShotgun() {
-        for (
-            let i = -4;
-            i <= 4;
-            i++
-        ) {
-            fireAtEnemy(
-                {
-                    speed: 480,
+        /* --------------------------------------------------
+           SHOTGUN
+
+           Actual spread of separate pellets.
+        -------------------------------------------------- */
+
+        case "shotgun":
+
+            Animation.play(
+                "shotgun_fire",
+                420
+            );
+
+            createMuzzleFlash(
+                "shotgun"
+            );
+
+
+            for (
+                let i = -4;
+                i <= 4;
+                i++
+            ) {
+
+                createPlayerProjectile({
+                    type:
+                        "shotgun_pellet",
+
+                    targetX:
+                        target.x,
+
+                    targetY:
+                        target.y,
+
+                    speed:
+                        random(
+                            455,
+                            515
+                        ),
+
                     damage: 4,
                     radius: 2,
-                    type:
-                        "shotgunPellet"
-                },
 
-                i * 0.075
+                    angleOffset:
+                        i * 0.075
+                });
+
+            }
+
+            break;
+
+
+        /* --------------------------------------------------
+           GASTER HAND
+        -------------------------------------------------- */
+
+        case "gasterHand":
+
+            beginGasterBeam(
+                target,
+                "hand"
+            );
+
+            break;
+
+
+        /* --------------------------------------------------
+           EXECUTION SCYTHE
+        -------------------------------------------------- */
+
+        case "scythe":
+
+            beginScytheAttack(
+                target
+            );
+
+            break;
+    }
+}
+
+
+/* ==========================================================
+   MUZZLE EFFECTS
+========================================================== */
+
+function createMuzzleFlash(
+    variant
+) {
+
+    effects.push({
+
+        type:
+            "muzzle_flash",
+
+        variant,
+
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY + 4,
+
+        life: 0.12,
+        maxLife: 0.12
+
+    });
+}
+
+
+/* ==========================================================
+   PLAYER PROJECTILE UPDATE
+========================================================== */
+
+function updatePlayerProjectiles(
+    dt,
+    now
+) {
+
+    for (
+        let i =
+            playerProjectiles.length - 1;
+
+        i >= 0;
+
+        i--
+    ) {
+
+        const projectile =
+            playerProjectiles[i];
+
+
+        if (!projectile) {
+
+            playerProjectiles.splice(
+                i,
+                1
+            );
+
+            continue;
+        }
+
+
+        /*
+            Store trail positions.
+        */
+
+        projectile.trail.push({
+            x: projectile.x,
+            y: projectile.y
+        });
+
+
+        const maxTrail =
+            projectile.type ===
+            "dmr_round"
+                ? 8
+                : projectile.type ===
+                  "ar_round"
+                    ? 5
+                    : 3;
+
+
+        if (
+            projectile.trail.length >
+            maxTrail
+        ) {
+            projectile.trail.shift();
+        }
+
+
+        /*
+            VECTOR eye:
+            controlled homing.
+        */
+
+        if (
+            now <
+            states.vectorUntil
+        ) {
+
+            const targetAngle =
+                Math.atan2(
+                    protagonist.y -
+                    projectile.y,
+
+                    protagonist.x -
+                    projectile.x
+                );
+
+            const speed =
+                Math.hypot(
+                    projectile.vx,
+                    projectile.vy
+                );
+
+            projectile.vx =
+                projectile.vx *
+                0.90 +
+                Math.cos(
+                    targetAngle
+                ) *
+                speed *
+                0.10;
+
+            projectile.vy =
+                projectile.vy *
+                0.90 +
+                Math.sin(
+                    targetAngle
+                ) *
+                speed *
+                0.10;
+        }
+
+
+        projectile.x +=
+            projectile.vx *
+            dt;
+
+        projectile.y +=
+            projectile.vy *
+            dt;
+
+        projectile.life -= dt;
+
+
+        if (
+            projectile.life <= 0 ||
+            projectile.x < -100 ||
+            projectile.x >
+                width + 100 ||
+            projectile.y < -100 ||
+            projectile.y >
+                height + 100
+        ) {
+
+            playerProjectiles.splice(
+                i,
+                1
+            );
+
+            continue;
+        }
+
+
+        if (
+            circlesTouch(
+
+                projectile.x,
+                projectile.y,
+                projectile.radius,
+
+                protagonist.x,
+                protagonist.y,
+                protagonist.radius
+
+            )
+        ) {
+
+            damageProtagonist(
+                projectile.damage
+            );
+
+            createImpact(
+                projectile.x,
+                projectile.y,
+                projectile.type
+            );
+
+            playerProjectiles.splice(
+                i,
+                1
             );
         }
-
-        effects.push({
-            type: "muzzleBurst",
-
-            x: forecast.x,
-            y: forecast.y + 10,
-
-            life: 0.18,
-            maxLife: 0.18
-        });
     }
+}/* ==========================================================
+   TECHNIQUES
+========================================================== */
 
+function activateTechnique(type) {
 
-    function createBeam(
-        chargeTime,
-        duration,
-        damage
+    if (
+        turn !== TURN.FORECAST ||
+        !type
     ) {
-        const now =
-            performance.now();
-
-        beam = {
-            chargeUntil:
-                now + chargeTime,
-
-            until:
-                now +
-                chargeTime +
-                duration,
-
-            damage,
-            hit: false
-        };
+        return;
     }
 
+    switch (type) {
 
-    /* ======================================================
-       TECHNIQUES
-    ====================================================== */
+        /* --------------------------------------------------
+           BONES
+        -------------------------------------------------- */
 
-    function useTechnique(type) {
-        if (
-            !type ||
-            !isForecastTurn()
-        ) {
-            return;
+        case "bones": {
+
+            Animation.play(
+                "bone_control",
+                600
+            );
+
+            const target =
+                getAttackTarget();
+
+            for (
+                let i = -2;
+                i <= 2;
+                i++
+            ) {
+
+                createPlayerProjectile({
+                    type: "bone",
+
+                    targetX: target.x,
+                    targetY: target.y,
+
+                    speed: 410,
+                    damage: 6,
+                    radius: 6,
+
+                    angleOffset:
+                        i * 0.09
+                });
+            }
+
+            break;
         }
 
-        switch (type) {
 
-            case "bones":
-                playForecastAnimation(
-                    "bone_control",
-                    550
-                );
+        /* --------------------------------------------------
+           BONE WALL
 
-                for (
-                    let i = -2;
-                    i <= 2;
-                    i++
-                ) {
-                    fireAtEnemy(
-                        {
-                            speed: 390,
-                            damage: 6,
-                            radius: 5,
-                            type: "bone"
-                        },
+           Warning -> bones erupt upward in sequence.
+        -------------------------------------------------- */
 
-                        i * 0.09
-                    );
-                }
-                break;
+        case "boneWall": {
 
+            Animation.play(
+                "bone_control",
+                700
+            );
 
-            case "boneWall":
-                playForecastAnimation(
-                    "bone_control",
-                    650
-                );
+            const baseX =
+                protagonist.x;
 
-                for (
-                    let i = 0;
-                    i < 7;
-                    i++
-                ) {
-                    hazards.push({
-                        type: "boneWall",
+            const baseY =
+                protagonist.y;
 
-                        x:
-                            enemy.x -
-                            60 +
-                            i * 20,
+            for (
+                let i = 0;
+                i < 8;
+                i++
+            ) {
 
-                        y:
-                            enemy.y,
-
-                        radius: 12,
-                        damage: 7,
-
-                        activateAt:
-                            performance.now() +
-                            350 +
-                            i * 45,
-
-                        life: 1.6,
-                        hit: false
-                    });
-                }
-                break;
-
-
-            case "illusions":
-                for (
-                    let i = 0;
-                    i < 6;
-                    i++
-                ) {
-                    illusions.push({
-                        x: random(
-                            arena.left + 30,
-                            arena.right - 30
-                        ),
-
-                        y: random(
-                            arena.top + 30,
-                            arena.bottom - 30
-                        ),
-
-                        until:
-                            performance.now() +
-                            3000
-                    });
-                }
-                break;
-
-
-            case "constructs":
-                for (
-                    let i = 0;
-                    i < 4;
-                    i++
-                ) {
-                    hazards.push({
-                        type: "construct",
-
-                        x:
-                            enemy.x +
-                            random(
-                                -100,
-                                100
-                            ),
-
-                        y:
-                            enemy.y +
-                            random(
-                                -70,
-                                70
-                            ),
-
-                        radius: 22,
-                        damage: 9,
-
-                        activateAt:
-                            performance.now() +
-                            500,
-
-                        life: 2.3,
-                        hit: false
-                    });
-                }
-                break;
-
-
-            case "gaster":
-                playForecastAnimation(
-                    "gaster_charge",
-                    500
-                );
-
-                setTimeout(
-                    () => {
-                        if (
-                            turn !==
-                            TURN.FORECAST
-                        ) {
-                            return;
-                        }
-
-                        playForecastAnimation(
-                            "gaster_fire",
-                            700
-                        );
-
-                        createBeam(
-                            0,
-                            650,
-                            24
-                        );
-                    },
-
-                    500
-                );
-                break;
-
-
-            case "forecastTrap":
                 hazards.push({
-                    type: "forecastTrap",
-
-                    /*
-                        Attack the position the
-                        protagonist is moving toward.
-                    */
+                    type: "bone_wall",
 
                     x:
-                        enemy.targetX,
+                        baseX -
+                        70 +
+                        i * 20,
 
-                    y:
-                        enemy.targetY,
+                    y: baseY,
 
-                    radius: 36,
-                    damage: 17,
+                    radius: 11,
+
+                    damage: 7,
 
                     activateAt:
                         performance.now() +
-                        700,
+                        350 +
+                        i * 55,
 
-                    life: 1.8,
+                    life: 1.7,
+
                     hit: false
                 });
-                break;
+            }
+
+            break;
+        }
 
 
-            case "crossfire":
-                createCrossfire();
-                break;
+        /* --------------------------------------------------
+           ILLUSIONS
+        -------------------------------------------------- */
+
+        case "illusions": {
+
+            const now =
+                performance.now();
+
+            for (
+                let i = 0;
+                i < 6;
+                i++
+            ) {
+
+                illusions.push({
+                    x:
+                        random(
+                            arena.left + 35,
+                            arena.right - 35
+                        ),
+
+                    y:
+                        random(
+                            arena.top + 35,
+                            arena.bottom - 35
+                        ),
+
+                    phase:
+                        random(
+                            0,
+                            Math.PI * 2
+                        ),
+
+                    until:
+                        now + 3200
+                });
+            }
+
+            effects.push({
+                type: "illusion_burst",
+
+                x: forecast.worldX,
+                y: forecast.worldY,
+
+                life: 0.45,
+                maxLife: 0.45
+            });
+
+            break;
+        }
 
 
-            case "falseFuture":
-                createFalseFuture();
-                break;
+        /* --------------------------------------------------
+           CONSTRUCTS
+
+           Independent summoned attackers.
+        -------------------------------------------------- */
+
+        case "constructs": {
+
+            const now =
+                performance.now();
+
+            for (
+                let i = 0;
+                i < 4;
+                i++
+            ) {
+
+                const angle =
+                    (
+                        i / 4
+                    ) *
+                    Math.PI *
+                    2;
+
+                constructs.push({
+                    x:
+                        protagonist.x +
+                        Math.cos(angle) *
+                        115,
+
+                    y:
+                        protagonist.y +
+                        Math.sin(angle) *
+                        90,
+
+                    angle,
+
+                    orbitRadius:
+                        85 +
+                        i * 7,
+
+                    fireAt:
+                        now +
+                        500 +
+                        i * 180,
+
+                    until:
+                        now + 3000,
+
+                    fired: false
+                });
+            }
+
+            break;
+        }
 
 
-            case "inevitable":
-                createInevitable();
-                break;
+        /* --------------------------------------------------
+           GASTER
+        -------------------------------------------------- */
+
+        case "gaster": {
+
+            beginGasterBeam(
+                getAttackTarget(),
+                "full"
+            );
+
+            break;
+        }
+
+
+        /* --------------------------------------------------
+           FORECAST TRAP
+
+           Marks predicted destination first.
+        -------------------------------------------------- */
+
+        case "forecastTrap": {
+
+            Animation.play(
+                "eye_activate",
+                450
+            );
+
+            const x =
+                aim.predictedX;
+
+            const y =
+                aim.predictedY;
+
+            hazards.push({
+                type: "forecast_trap",
+
+                x,
+                y,
+
+                radius: 38,
+
+                damage: 17,
+
+                warningAt:
+                    performance.now(),
+
+                activateAt:
+                    performance.now() +
+                    720,
+
+                life: 2,
+
+                hit: false
+            });
+
+            break;
+        }
+
+
+        /* --------------------------------------------------
+           CROSSFIRE
+
+           Actual attacks from multiple directions.
+        -------------------------------------------------- */
+
+        case "crossfire": {
+
+            beginCrossfire();
+
+            break;
+        }
+
+
+        /* --------------------------------------------------
+           FALSE FUTURE
+
+           Shows one future.
+           Attack happens somewhere else.
+        -------------------------------------------------- */
+
+        case "falseFuture": {
+
+            beginFalseFuture();
+
+            break;
+        }
+
+
+        /* --------------------------------------------------
+           INEVITABLE
+        -------------------------------------------------- */
+
+        case "inevitable": {
+
+            beginInevitable();
+
+            break;
         }
     }
+}
 
 
-    function createCrossfire() {
-        const amount = 8;
+/* ==========================================================
+   CONSTRUCTS
+========================================================== */
 
-        for (
-            let i = 0;
-            i < amount;
-            i++
+function updateConstructs(
+    dt,
+    now
+) {
+
+    for (
+        let i =
+            constructs.length - 1;
+
+        i >= 0;
+
+        i--
+    ) {
+
+        const construct =
+            constructs[i];
+
+        if (
+            now >=
+            construct.until
         ) {
-            const angle =
-                (
-                    i /
-                    amount
-                ) *
-                Math.PI *
-                2;
 
-            const spawnX =
-                enemy.x +
-                Math.cos(angle) *
-                150;
+            constructs.splice(
+                i,
+                1
+            );
 
-            const spawnY =
-                enemy.y +
-                Math.sin(angle) *
-                150;
+            continue;
+        }
 
-            const dx =
-                enemy.x -
-                spawnX;
 
-            const dy =
-                enemy.y -
-                spawnY;
+        construct.angle +=
+            dt * 1.7;
 
-            const distance =
-                Math.hypot(
-                    dx,
-                    dy
-                ) || 1;
 
-            forecastProjectiles.push({
-                x: spawnX,
-                y: spawnY,
+        construct.x =
+            protagonist.x +
+            Math.cos(
+                construct.angle
+            ) *
+            construct.orbitRadius;
 
-                vx:
-                    (
-                        dx /
-                        distance
-                    ) *
-                    330,
 
-                vy:
-                    (
-                        dy /
-                        distance
-                    ) *
-                    330,
+        construct.y =
+            protagonist.y +
+            Math.sin(
+                construct.angle
+            ) *
+            construct.orbitRadius;
 
-                damage: 7,
-                radius: 4,
 
-                type: "crossfire",
+        if (
+            !construct.fired &&
+            now >=
+            construct.fireAt
+        ) {
 
-                life: 1.5
+            construct.fired = true;
+
+
+            createPlayerProjectile({
+
+                type:
+                    "construct_shard",
+
+                x:
+                    construct.x,
+
+                y:
+                    construct.y,
+
+                targetX:
+                    protagonist.x,
+
+                targetY:
+                    protagonist.y,
+
+                speed: 390,
+
+                damage: 9,
+
+                radius: 5
+
             });
         }
     }
+}
 
 
-    function createFalseFuture() {
-        const fakeX =
-            enemy.targetX;
+/* ==========================================================
+   CROSSFIRE
+========================================================== */
 
-        const fakeY =
-            enemy.targetY;
+function beginCrossfire() {
 
-        effects.push({
-            type: "fakeMarker",
+    Animation.play(
+        "eye_activate",
+        500
+    );
 
-            x: fakeX,
-            y: fakeY,
 
-            life: 0.8,
-            maxLife: 0.8
-        });
+    const count = 8;
+
+    const centerX =
+        protagonist.x;
+
+    const centerY =
+        protagonist.y;
+
+
+    effects.push({
+        type: "crosshair",
+
+        x: centerX,
+        y: centerY,
+
+        life: 0.55,
+        maxLife: 0.55
+    });
+
+
+    setTimeout(
+        () => {
+
+            if (
+                turn !==
+                TURN.FORECAST
+            ) {
+                return;
+            }
+
+
+            for (
+                let i = 0;
+                i < count;
+                i++
+            ) {
+
+                const angle =
+                    (
+                        i /
+                        count
+                    ) *
+                    Math.PI *
+                    2;
+
+
+                const x =
+                    centerX +
+                    Math.cos(angle) *
+                    160;
+
+
+                const y =
+                    centerY +
+                    Math.sin(angle) *
+                    160;
+
+
+                createPlayerProjectile({
+
+                    type:
+                        "crossfire_shard",
+
+                    x,
+                    y,
+
+                    targetX:
+                        centerX,
+
+                    targetY:
+                        centerY,
+
+                    speed: 370,
+
+                    damage: 7,
+
+                    radius: 4
+
+                });
+            }
+
+        },
+
+        480
+    );
+}
+
+
+/* ==========================================================
+   FALSE FUTURE
+========================================================== */
+
+function beginFalseFuture() {
+
+    Animation.play(
+        "eye_activate",
+        600
+    );
+
+
+    const fakeX =
+        aim.predictedX;
+
+    const fakeY =
+        aim.predictedY;
+
+
+    effects.push({
+
+        type:
+            "false_future_marker",
+
+        x: fakeX,
+        y: fakeY,
+
+        life: 0.85,
+        maxLife: 0.85
+
+    });
+
+
+    setTimeout(
+        () => {
+
+            if (
+                turn !==
+                TURN.FORECAST
+            ) {
+                return;
+            }
+
+
+            /*
+                Real attack snaps to the protagonist's
+                ACTUAL position after the false warning.
+            */
+
+            const realX =
+                protagonist.x;
+
+            const realY =
+                protagonist.y;
+
+
+            hazards.push({
+
+                type:
+                    "false_future_strike",
+
+                x: realX,
+                y: realY,
+
+                radius: 42,
+
+                damage: 21,
+
+                activateAt:
+                    performance.now() +
+                    100,
+
+                life: 1.25,
+
+                hit: false
+
+            });
+
+
+            effects.push({
+
+                type:
+                    "future_break",
+
+                x: fakeX,
+                y: fakeY,
+
+                targetX: realX,
+                targetY: realY,
+
+                life: 0.45,
+                maxLife: 0.45
+
+            });
+
+        },
+
+        720
+    );
+}
+
+
+/* ==========================================================
+   INEVITABLE — PHASE 5 SEQUENCE
+========================================================== */
+
+function beginInevitable() {
+
+    Animation.play(
+        "phase_change",
+        1000
+    );
+
+
+    effects.push({
+
+        type:
+            "inevitable_start",
+
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY,
+
+        life: 1,
+        maxLife: 1
+
+    });
+
+
+    /*
+        Four prediction locks.
+        Each one updates to the protagonist's position.
+    */
+
+    for (
+        let wave = 0;
+        wave < 4;
+        wave++
+    ) {
 
         setTimeout(
             () => {
+
                 if (
                     turn !==
                     TURN.FORECAST
@@ -1987,466 +3519,265 @@ const Battle = (() => {
                     return;
                 }
 
-                hazards.push({
+
+                const x =
+                    protagonist.x;
+
+                const y =
+                    protagonist.y;
+
+
+                effects.push({
+
                     type:
-                        "falseFuture",
+                        "inevitable_lock",
 
-                    x:
-                        enemy.x,
+                    x,
+                    y,
 
-                    y:
-                        enemy.y,
+                    life: 0.55,
+                    maxLife: 0.55
 
-                    radius: 40,
-                    damage: 21,
+                });
+
+
+                hazards.push({
+
+                    type:
+                        "inevitable_strike",
+
+                    x,
+                    y,
+
+                    radius:
+                        27 +
+                        wave * 4,
+
+                    damage: 11,
 
                     activateAt:
                         performance.now() +
-                        100,
+                        420,
 
-                    life: 1.2,
+                    life: 1.4,
+
                     hit: false
+
                 });
+
             },
 
-            650
+            wave * 430
         );
     }
+}
 
 
-    function createInevitable() {
-        for (
-            let i = 0;
-            i < 4;
-            i++
-        ) {
-            setTimeout(
-                () => {
-                    if (
-                        turn !==
-                        TURN.FORECAST
-                    ) {
-                        return;
-                    }
+/* ==========================================================
+   GASTER SYSTEM
 
-                    hazards.push({
-                        type:
-                            "inevitable",
+   Charge -> targeting line -> beam.
+========================================================== */
 
-                        x:
-                            enemy.x,
+function beginGasterBeam(
+    target,
+    variant
+) {
 
-                        y:
-                            enemy.y,
-
-                        radius:
-                            28 +
-                            i * 6,
-
-                        damage: 11,
-
-                        activateAt:
-                            performance.now() +
-                            250,
-
-                        life: 1.2,
-                        hit: false
-                    });
-                },
-
-                i * 350
-            );
-        }
+    if (activeBeam) {
+        return;
     }
 
 
-    /* ======================================================
-       EYES
-    ====================================================== */
-
-    function useEye(data) {
-        const now =
-            performance.now();
-
-        playForecastAnimation(
-            "eye_activate",
-            450
-        );
-
-        effects.push({
-            type: "eyeFlash",
-
-            x: forecast.x,
-            y: forecast.y - 15,
-
-            life: 0.45,
-            maxLife: 0.45
-        });
-
-        switch (data.effect) {
-
-            case "freeze":
-                enemy.frozenUntil =
-                    now +
-                    data.duration;
-                break;
+    const now =
+        performance.now();
 
 
-            case "domain":
-                domainUntil =
-                    now +
-                    data.duration;
-                break;
+    const chargeDuration =
+        variant === "full"
+            ? 650
+            : 430;
 
 
-            case "heroism":
-                heroismUntil =
-                    now +
-                    data.duration;
-                break;
+    const beamDuration =
+        variant === "full"
+            ? 750
+            : 520;
 
 
-            case "evolution":
-                evolutionUntil =
-                    now +
-                    data.duration;
-                break;
+    Animation.play(
+        "gaster_charge",
+        chargeDuration
+    );
 
 
-            case "deadlock":
-                deadlockUntil =
-                    now +
-                    data.duration;
-                break;
+    activeBeam = {
+
+        variant,
+
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY + 12,
+
+        targetX:
+            target.x,
+
+        targetY:
+            target.y,
+
+        startedAt: now,
+
+        chargeUntil:
+            now +
+            chargeDuration,
+
+        until:
+            now +
+            chargeDuration +
+            beamDuration,
+
+        damage:
+            variant === "full"
+                ? 28
+                : 22,
+
+        width:
+            variant === "full"
+                ? 36
+                : 25,
+
+        hit: false
+    };
+}
 
 
-            case "null":
-                enemyProjectiles = [];
+/* ==========================================================
+   SCYTHE SYSTEM
+========================================================== */
 
-                effects.push({
-                    type: "nullBurst",
+function beginScytheAttack(target) {
 
-                    x: forecast.x,
-                    y: forecast.y,
-
-                    life: 0.6,
-                    maxLife: 0.6
-                });
-                break;
-
-
-            case "paradox":
-                decoy = {
-                    x:
-                        forecast.x +
-                        100,
-
-                    y:
-                        forecast.y,
-
-                    until:
-                        now +
-                        data.duration
-                };
-                break;
-
-
-            case "observe":
-                observeUntil =
-                    now +
-                    data.duration;
-                break;
-
-
-            case "vector":
-                vectorUntil =
-                    now +
-                    data.duration;
-                break;
-
-
-            case "moment":
-                momentUntil =
-                    now +
-                    data.duration;
-                break;
-        }
-    }    /* ======================================================
-       FORECAST PROJECTILE UPDATE
-    ====================================================== */
-
-    function updateForecastProjectiles(
-        dt,
-        now
-    ) {
-        for (
-            let i =
-                forecastProjectiles.length - 1;
-
-            i >= 0;
-
-            i--
-        ) {
-            const projectile =
-                forecastProjectiles[i];
-
-            if (!projectile) {
-                forecastProjectiles.splice(
-                    i,
-                    1
-                );
-
-                continue;
-            }
-
-            /*
-                VECTOR subtly bends projectiles
-                toward the protagonist.
-            */
-
-            if (
-                now < vectorUntil
-            ) {
-                const angle =
-                    Math.atan2(
-                        enemy.y -
-                        projectile.y,
-
-                        enemy.x -
-                        projectile.x
-                    );
-
-                const speed =
-                    Math.hypot(
-                        projectile.vx,
-                        projectile.vy
-                    );
-
-                projectile.vx =
-                    projectile.vx * 0.9 +
-                    Math.cos(angle) *
-                    speed *
-                    0.1;
-
-                projectile.vy =
-                    projectile.vy * 0.9 +
-                    Math.sin(angle) *
-                    speed *
-                    0.1;
-            }
-
-            projectile.x +=
-                projectile.vx * dt;
-
-            projectile.y +=
-                projectile.vy * dt;
-
-            projectile.life -= dt;
-
-            if (
-                projectile.life <= 0 ||
-                projectile.x < -100 ||
-                projectile.x > width + 100 ||
-                projectile.y < -100 ||
-                projectile.y > height + 100
-            ) {
-                forecastProjectiles.splice(
-                    i,
-                    1
-                );
-
-                continue;
-            }
-
-            if (
-                circlesTouch(
-                    projectile.x,
-                    projectile.y,
-                    projectile.radius,
-
-                    enemy.x,
-                    enemy.y,
-                    enemy.radius
-                )
-            ) {
-                damageEnemy(
-                    projectile.damage
-                );
-
-                createHitEffect(
-                    enemy.x,
-                    enemy.y
-                );
-
-                forecastProjectiles.splice(
-                    i,
-                    1
-                );
-            }
-        }
+    if (activeScythe) {
+        return;
     }
 
 
-    /* ======================================================
-       HAZARDS
-    ====================================================== */
+    const now =
+        performance.now();
 
-    function updateHazards(
-        dt,
-        now
-    ) {
-        for (
-            let i =
-                hazards.length - 1;
 
-            i >= 0;
+    Animation.play(
+        "scythe_summon",
+        300
+    );
 
-            i--
+
+    activeScythe = {
+
+        stage: "summon",
+
+        startedAt: now,
+
+        swingAt:
+            now + 300,
+
+        until:
+            now + 950,
+
+        targetX:
+            target.x,
+
+        targetY:
+            target.y,
+
+        damage: 28,
+
+        hit: false
+    };
+}
+
+
+/* ==========================================================
+   SPECIAL ATTACK UPDATE
+========================================================== */
+
+function updateSpecialAttacks(
+    dt,
+    now
+) {
+
+    /* ---------------- GASTER ---------------- */
+
+    if (activeBeam) {
+
+        if (
+            now >=
+            activeBeam.until
         ) {
-            const hazard =
-                hazards[i];
 
-            hazard.life -= dt;
-
-            if (
-                hazard.life <= 0
-            ) {
-                hazards.splice(
-                    i,
-                    1
-                );
-
-                continue;
-            }
-
-            if (
-                now <
-                hazard.activateAt
-            ) {
-                continue;
-            }
-
-            if (
-                hazard.hit
-            ) {
-                continue;
-            }
-
-            if (
-                circlesTouch(
-                    hazard.x,
-                    hazard.y,
-                    hazard.radius,
-
-                    enemy.x,
-                    enemy.y,
-                    enemy.radius
-                )
-            ) {
-                hazard.hit = true;
-
-                damageEnemy(
-                    hazard.damage
-                );
-
-                createHitEffect(
-                    enemy.x,
-                    enemy.y
-                );
-            }
-        }
-    }
-
-
-    /* ======================================================
-       BEAM / SCYTHE
-    ====================================================== */
-
-    function updateSpecialAttacks(now) {
-
-        if (beam) {
-            if (
-                now >= beam.until
-            ) {
-                beam = null;
-            }
-
-            else if (
-                now >=
-                    beam.chargeUntil &&
-                !beam.hit
-            ) {
-                /*
-                    Beam is aimed from Forecast
-                    through the protagonist.
-                */
-
-                if (
-                    distancePointToSegment(
-                        enemy.x,
-                        enemy.y,
-
-                        forecast.x,
-                        forecast.y,
-
-                        enemy.x,
-                        enemy.y,
-
-                        width * 2
-                    ) < 30
-                ) {
-                    beam.hit = true;
-
-                    damageEnemy(
-                        beam.damage
-                    );
-
-                    createHitEffect(
-                        enemy.x,
-                        enemy.y
-                    );
-                }
-            }
+            activeBeam = null;
         }
 
+        else if (
+            now >=
+            activeBeam.chargeUntil
+        ) {
 
-        if (scythe) {
             if (
-                now >= scythe.until
+                Animation.getName() !==
+                "gaster_fire"
             ) {
-                scythe = null;
+
+                Animation.play(
+                    "gaster_fire",
+                    500
+                );
             }
 
-            else if (
-                !scythe.hit
+
+            if (
+                !activeBeam.hit
             ) {
-                /*
-                    Large stylized arc.
-                    Generous range because Forecast
-                    stands above the box.
-                */
+
+                const beamEnd =
+                    getBeamEnd(
+                        activeBeam
+                    );
+
 
                 const distance =
-                    Math.hypot(
-                        enemy.x -
-                        forecast.x,
+                    distancePointToSegment(
 
-                        enemy.y -
-                        forecast.y
+                        protagonist.x,
+                        protagonist.y,
+
+                        activeBeam.x,
+                        activeBeam.y,
+
+                        beamEnd.x,
+                        beamEnd.y
+
                     );
+
 
                 if (
-                    distance < 230
+                    distance <=
+                    activeBeam.width *
+                    0.6
                 ) {
-                    scythe.hit = true;
 
-                    damageEnemy(
-                        scythe.damage
+                    activeBeam.hit = true;
+
+                    damageProtagonist(
+                        activeBeam.damage
                     );
 
-                    createHitEffect(
-                        enemy.x,
-                        enemy.y
+                    createImpact(
+                        protagonist.x,
+                        protagonist.y,
+                        "gaster"
                     );
                 }
             }
@@ -2454,1309 +3785,1826 @@ const Battle = (() => {
     }
 
 
-    /* ======================================================
-       ENEMY DAMAGE
-    ====================================================== */
+    /* ---------------- SCYTHE ---------------- */
 
-    function damageEnemy(amount) {
+    if (activeScythe) {
+
         if (
-            turn !== TURN.FORECAST
+            activeScythe.stage ===
+                "summon" &&
+            now >=
+                activeScythe.swingAt
         ) {
-            return;
+
+            activeScythe.stage =
+                "swing";
+
+            Animation.play(
+                "scythe_swing",
+                620
+            );
         }
 
-        let finalDamage =
-            amount;
 
         if (
-            performance.now() <
-            heroismUntil
+            activeScythe.stage ===
+                "swing" &&
+            !activeScythe.hit
         ) {
-            finalDamage *= 1.3;
+
+            const distance =
+                Math.hypot(
+
+                    protagonist.x -
+                    forecast.worldX,
+
+                    protagonist.y -
+                    forecast.worldY
+
+                );
+
+
+            if (
+                distance <= 245
+            ) {
+
+                activeScythe.hit = true;
+
+                damageProtagonist(
+                    activeScythe.damage
+                );
+
+                createImpact(
+                    protagonist.x,
+                    protagonist.y,
+                    "scythe"
+                );
+            }
         }
 
-        enemy.hp =
-            Math.max(
-                0,
-                enemy.hp -
-                finalDamage
-            );
-
-        updateEnemyHUD();
 
         if (
-            enemy.hp <= 0
+            now >=
+            activeScythe.until
         ) {
-            turn = TURN.ENDED;
 
-            forecastProjectiles = [];
-            enemyProjectiles = [];
-            hazards = [];
-
-            updateTurnHUD();
-
-            message(
-                "Possibility terminated."
-            );
+            activeScythe = null;
         }
     }
+}
 
 
-    /* ======================================================
-       PHASE CHANGE
-    ====================================================== */
+/* ==========================================================
+   EYES
+========================================================== */
 
-    function onPhaseChanged(detail) {
+function activateEye(data) {
 
-        /*
-            IMPORTANT:
-            Phase change NEVER changes Forecast's
-            gameplay coordinates.
-        */
-
-        positionForecast();
-
-        enemyProjectiles = [];
-        hazards = [];
-
-        playForecastAnimation(
-            "phase_change",
-            900
-        );
-
-        effects.push({
-            type: "phaseBurst",
-
-            x: forecast.x,
-            y: forecast.y,
-
-            life: 0.9,
-            maxLife: 0.9
-        });
-
-        if (
-            ForecastPhases.getPhase() ===
-            "5"
-        ) {
-            message(
-                "Phase 5."
-            );
-        }
-    }
-
-
-    /* ======================================================
-       EFFECT UPDATE
-    ====================================================== */
-
-    function updateEffects(
-        dt,
-        now
+    if (
+        turn !== TURN.FORECAST
     ) {
-        for (
-            const effect of effects
-        ) {
-            effect.life -= dt;
-        }
+        return;
+    }
 
-        effects =
-            effects.filter(
-                effect =>
-                    effect.life > 0
-            );
 
-        illusions =
-            illusions.filter(
-                illusion =>
-                    now <
-                    illusion.until
-            );
+    const now =
+        performance.now();
+
+
+    Animation.play(
+        "eye_activate",
+        520
+    );
+
+
+    effects.push({
+
+        type:
+            "eye_activation",
+
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY - 15,
+
+        life: 0.55,
+        maxLife: 0.55
+
+    });
+
+
+    switch (data.effect) {
+
+        /* RED EYE */
+
+        case "freeze":
+
+            protagonist.frozenUntil =
+                now +
+                (
+                    data.duration ||
+                    3000
+                );
+
+            effects.push({
+
+                type:
+                    "freeze_lock",
+
+                x:
+                    protagonist.x,
+
+                y:
+                    protagonist.y,
+
+                life: 0.7,
+                maxLife: 0.7
+
+            });
+
+            break;
+
+
+        /* BLACK EYE */
+
+        case "domain":
+
+            states.domainUntil =
+                now +
+                (
+                    data.duration ||
+                    3500
+                );
+
+            break;
+
+
+        /* HEROISM */
+
+        case "heroism":
+
+            states.heroismUntil =
+                now +
+                (
+                    data.duration ||
+                    4000
+                );
+
+            break;
+
+
+        /* EVOLUTION */
+
+        case "evolution":
+
+            states.evolutionUntil =
+                now +
+                (
+                    data.duration ||
+                    5000
+                );
+
+            break;
+
+
+        /* DEADLOCK */
+
+        case "deadlock":
+
+            states.deadlockUntil =
+                now +
+                (
+                    data.duration ||
+                    3500
+                );
+
+            break;
+
+
+        /* NULL */
+
+        case "null":
+
+            hostileProjectiles = [];
+
+            effects.push({
+
+                type:
+                    "null_wave",
+
+                x:
+                    forecast.worldX,
+
+                y:
+                    forecast.worldY,
+
+                life: 0.75,
+                maxLife: 0.75
+
+            });
+
+            break;
+
+
+        /* PARADOX */
+
+        case "paradox":
+
+            states.decoyUntil =
+                now +
+                (
+                    data.duration ||
+                    4000
+                );
+
+            states.decoyX =
+                forecast.worldX +
+                (
+                    Math.random() <
+                    0.5
+                        ? -95
+                        : 95
+                );
+
+            states.decoyY =
+                forecast.worldY +
+                15;
+
+            break;
+
+
+        /* OBSERVE */
+
+        case "observe":
+
+            states.observeUntil =
+                now +
+                (
+                    data.duration ||
+                    5000
+                );
+
+            break;
+
+
+        /* VECTOR */
+
+        case "vector":
+
+            states.vectorUntil =
+                now +
+                (
+                    data.duration ||
+                    4500
+                );
+
+            break;
+
+
+        /* MOMENT */
+
+        case "moment":
+
+            states.momentUntil =
+                now +
+                (
+                    data.duration ||
+                    3500
+                );
+
+            break;
+    }
+}
+
+
+/* ==========================================================
+   HAZARD UPDATE
+========================================================== */
+
+function updateHazards(
+    dt,
+    now
+) {
+
+    for (
+        let i =
+            hazards.length - 1;
+
+        i >= 0;
+
+        i--
+    ) {
+
+        const hazard =
+            hazards[i];
+
+
+        hazard.life -= dt;
+
 
         if (
-            decoy &&
-            now >= decoy.until
+            hazard.life <= 0
         ) {
-            decoy = null;
+
+            hazards.splice(
+                i,
+                1
+            );
+
+            continue;
+        }
+
+
+        if (
+            now <
+            hazard.activateAt
+        ) {
+            continue;
+        }
+
+
+        if (hazard.hit) {
+            continue;
+        }
+
+
+        if (
+            circlesTouch(
+
+                hazard.x,
+                hazard.y,
+                hazard.radius,
+
+                protagonist.x,
+                protagonist.y,
+                protagonist.radius
+
+            )
+        ) {
+
+            hazard.hit = true;
+
+
+            damageProtagonist(
+                hazard.damage
+            );
+
+
+            createImpact(
+                hazard.x,
+                hazard.y,
+                hazard.type
+            );
         }
     }
+}
 
 
-    /* ======================================================
-       MAIN RENDER
-    ====================================================== */
+/* ==========================================================
+   DAMAGE
+========================================================== */
 
-    function draw(now) {
-        ctx.clearRect(
-            0,
-            0,
-            width,
-            height
-        );
+function damageProtagonist(amount) {
 
-        drawArena(now);
-
-        drawPrediction(now);
-
-        drawHazards(now);
-
-        drawIllusions(now);
-
-        drawForecastProjectiles();
-
-        drawEnemyProjectiles();
-
-        drawBeam(now);
-
-        drawScythe(now);
-
-        /*
-            Forecast is deliberately rendered AFTER
-            attacks so he stays readable as the boss.
-        */
-
-        drawForecast(now);
-
-        drawEnemy(now);
-
-        drawEffects(now);
+    if (
+        turn !== TURN.FORECAST
+    ) {
+        return;
     }
 
 
-    /* ======================================================
-       ARENA
-    ====================================================== */
+    let damage =
+        amount;
 
-    function drawArena(now) {
-        ctx.save();
 
-        ctx.strokeStyle =
-            now < domainUntil
-                ? "#ff2424"
-                : "#eeeeee";
+    if (
+        performance.now() <
+        states.heroismUntil
+    ) {
 
-        ctx.lineWidth = 3;
+        damage *= 1.3;
+    }
 
-        ctx.strokeRect(
+
+    protagonist.hp =
+        Math.max(
+            0,
+            protagonist.hp -
+            damage
+        );
+
+
+    updateEnemyHUD();
+
+
+    if (
+        protagonist.hp <= 0
+    ) {
+
+        turn =
+            TURN.ENDED;
+
+        playerProjectiles = [];
+        hostileProjectiles = [];
+        hazards = [];
+        constructs = [];
+
+        activeBeam = null;
+        activeScythe = null;
+
+        Animation.play(
+            "idle"
+        );
+
+        updateTurnHUD();
+
+        message(
+            "Possibility terminated."
+        );
+    }
+}
+
+
+/* ==========================================================
+   PHASE CHANGE
+========================================================== */
+
+function handlePhaseChange(detail) {
+
+    hostileProjectiles = [];
+    hazards = [];
+
+
+    Animation.play(
+        "phase_change",
+        1000
+    );
+
+
+    effects.push({
+
+        type:
+            "phase_change",
+
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY,
+
+        phase:
+            ForecastPhases.getPhase(),
+
+        life: 1,
+        maxLife: 1
+
+    });
+
+
+    /*
+        Phase 5 remains the final known phase.
+        No invented Phase 6.
+    */
+
+    if (
+        ForecastPhases.getPhase() ===
+        "5"
+    ) {
+
+        message(
+            "PHASE 5 — SAME END ANYWAY."
+        );
+    }
+}
+
+
+/* ==========================================================
+   IMPACT EFFECTS
+========================================================== */
+
+function createImpact(
+    x,
+    y,
+    variant
+) {
+
+    effects.push({
+
+        type:
+            "impact",
+
+        variant,
+
+        x,
+        y,
+
+        life: 0.28,
+        maxLife: 0.28
+
+    });
+}
+
+
+/* ==========================================================
+   EFFECT UPDATE / CLEANUP
+========================================================== */
+
+function updateEffects(dt) {
+
+    for (
+        const effect of effects
+    ) {
+
+        effect.life -= dt;
+    }
+
+
+    effects =
+        effects.filter(
+            effect =>
+                effect.life > 0
+        );
+}
+
+
+function cleanupTemporaryObjects(now) {
+
+    illusions =
+        illusions.filter(
+            illusion =>
+                now <
+                illusion.until
+        );
+
+
+    if (
+        now >=
+        states.decoyUntil
+    ) {
+
+        states.decoyUntil = 0;
+    }
+}
+
+
+/* ==========================================================
+   RENDER
+========================================================== */
+
+function render(now) {
+
+    ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    drawBackground(now);
+
+    drawAimSystem(now);
+
+    drawArena(now);
+
+    drawIllusions(now);
+
+    drawHazards(now);
+
+    drawConstructs(now);
+
+    drawPlayerProjectiles(now);
+
+    drawHostileProjectiles(now);
+
+    drawGaster(now);
+
+    drawScythe(now);
+
+    drawProtagonist(now);
+
+    drawForecast(now);
+
+    drawEffects(now);
+}
+
+
+/* ==========================================================
+   BACKGROUND
+========================================================== */
+
+function drawBackground(now) {
+
+    ctx.save();
+
+
+    ctx.fillStyle =
+        "#000000";
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    /*
+        Phase aura behind Forecast.
+    */
+
+    const phase =
+        ForecastPhases.getPhase();
+
+    const style =
+        PHASE_STYLE[phase] ||
+        PHASE_STYLE["1"];
+
+
+    const gradient =
+        ctx.createRadialGradient(
+
+            forecast.worldX,
+            forecast.worldY,
+            5,
+
+            forecast.worldX,
+            forecast.worldY,
+            150
+
+        );
+
+
+    gradient.addColorStop(
+        0,
+        `rgba(255,20,20,${
+            style.aura
+        })`
+    );
+
+
+    gradient.addColorStop(
+        1,
+        "rgba(255,0,0,0)"
+    );
+
+
+    ctx.fillStyle =
+        gradient;
+
+
+    ctx.fillRect(
+        forecast.worldX - 170,
+        forecast.worldY - 170,
+        340,
+        340
+    );
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   ARENA
+========================================================== */
+
+function drawArena(now) {
+
+    ctx.save();
+
+
+    ctx.strokeStyle =
+        now <
+        states.domainUntil
+            ? "#ff3030"
+            : "#eeeeee";
+
+
+    ctx.lineWidth = 3;
+
+
+    if (
+        now <
+        states.domainUntil
+    ) {
+
+        ctx.shadowColor =
+            "#ff2020";
+
+        ctx.shadowBlur = 14;
+    }
+
+
+    ctx.strokeRect(
+
+        arena.left,
+        arena.top,
+
+        arena.right -
+        arena.left,
+
+        arena.bottom -
+        arena.top
+
+    );
+
+
+    if (
+        now <
+        states.domainUntil
+    ) {
+
+        ctx.globalAlpha = 0.07;
+
+        ctx.fillStyle =
+            "#ff2020";
+
+        ctx.fillRect(
+
             arena.left,
             arena.top,
 
             arena.right -
-                arena.left,
+            arena.left,
 
             arena.bottom -
-                arena.top
+            arena.top
+
+        );
+    }
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   AIM / PREDICTION VISUALS
+========================================================== */
+
+function drawAimSystem(now) {
+
+    if (
+        turn !== TURN.FORECAST
+    ) {
+        return;
+    }
+
+
+    const showPrediction =
+        aim.active ||
+        now <
+            states.predictionUntil ||
+        now <
+            states.observeUntil;
+
+
+    if (!showPrediction) {
+        return;
+    }
+
+
+    const target =
+        aim.active
+            ? {
+                x: aim.x,
+                y: aim.y
+            }
+            : {
+                x: aim.predictedX,
+                y: aim.predictedY
+            };
+
+
+    ctx.save();
+
+
+    ctx.strokeStyle =
+        aim.active
+            ? "#ffffff"
+            : "#ff3030";
+
+
+    ctx.lineWidth = 2;
+
+
+    ctx.setLineDash([
+        7,
+        6
+    ]);
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        forecast.worldX,
+        forecast.worldY
+    );
+
+
+    ctx.lineTo(
+        target.x,
+        target.y
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.setLineDash([]);
+
+
+    ctx.strokeStyle =
+        "#ff3030";
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        target.x,
+        target.y,
+        14,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        target.x - 20,
+        target.y
+    );
+
+
+    ctx.lineTo(
+        target.x + 20,
+        target.y
+    );
+
+
+    ctx.moveTo(
+        target.x,
+        target.y - 20
+    );
+
+
+    ctx.lineTo(
+        target.x,
+        target.y + 20
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   FORECAST SPRITE RENDERER
+========================================================== */
+
+function drawForecast(now) {
+
+    const frameName =
+        Animation.getFrame(now);
+
+
+    const sprite =
+        ForecastSprites.get(
+            frameName
         );
 
-        if (
-            now < domainUntil
-        ) {
-            ctx.globalAlpha = 0.08;
 
-            ctx.fillStyle =
-                "#ff2424";
+    const phase =
+        ForecastPhases.getPhase();
 
-            ctx.fillRect(
-                arena.left,
-                arena.top,
 
-                arena.right -
-                    arena.left,
+    const phaseStyle =
+        PHASE_STYLE[phase] ||
+        PHASE_STYLE["1"];
 
-                arena.bottom -
-                    arena.top
+
+    /*
+        IMPORTANT:
+
+        renderX/renderY can visually shift for dodge animation.
+        worldX/worldY NEVER change.
+    */
+
+    let renderX =
+        forecast.worldX;
+
+
+    let renderY =
+        forecast.worldY;
+
+
+    const animation =
+        Animation.getName();
+
+
+    if (
+        animation ===
+        "dodge_left"
+    ) {
+        renderX -= 12;
+    }
+
+
+    else if (
+        animation ===
+        "dodge_right"
+    ) {
+        renderX += 12;
+    }
+
+
+    else if (
+        animation ===
+        "dodge_up"
+    ) {
+        renderY -= 10;
+    }
+
+
+    else if (
+        animation ===
+        "dodge_down"
+    ) {
+        renderY += 10;
+    }
+
+
+    ctx.save();
+
+
+    ctx.translate(
+        renderX,
+        renderY
+    );
+
+
+    ctx.scale(
+        phaseStyle.scale,
+        phaseStyle.scale
+    );
+
+
+    /*
+        If clean frame exists:
+        USE THE REAL SPRITE.
+    */
+
+    if (sprite) {
+
+        const maxHeight = 92;
+
+        const scale =
+            Math.min(
+                1,
+                maxHeight /
+                sprite.height
             );
-        }
 
-        ctx.restore();
+
+        const drawWidth =
+            sprite.width *
+            scale;
+
+
+        const drawHeight =
+            sprite.height *
+            scale;
+
+
+        ctx.drawImage(
+
+            sprite,
+
+            -drawWidth / 2,
+            -drawHeight / 2,
+
+            drawWidth,
+            drawHeight
+
+        );
     }
 
 
-    /* ======================================================
-       PREDICTION
-    ====================================================== */
+    /*
+        Clean fallback only while an individual
+        extracted frame is absent.
+    */
 
-    function drawPrediction(now) {
-        if (
-            now >= predictionUntil &&
-            now >= observeUntil
-        ) {
-            return;
-        }
+    else {
 
-        ctx.save();
-
-        ctx.globalAlpha = 0.45;
-
-        ctx.strokeStyle =
-            "#ff3030";
-
-        ctx.lineWidth = 2;
-
-        ctx.setLineDash([
-            5,
-            5
-        ]);
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            enemy.x,
-            enemy.y
+        drawForecastFallback(
+            animation,
+            now
         );
-
-        ctx.lineTo(
-            enemy.targetX,
-            enemy.targetY
-        );
-
-        ctx.stroke();
-
-        ctx.beginPath();
-
-        ctx.arc(
-            enemy.targetX,
-            enemy.targetY,
-            15,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.stroke();
-
-        ctx.restore();
     }
 
 
-    /* ======================================================
-       FORECAST RENDERER
-
-       TEMPORARY CLEAN PIXEL-STYLE RENDERER.
-
-       We are NOT cropping random pieces of the giant
-       character sheet anymore.
-
-       The animation states are real and already hooked
-       into combat. Clean transparent animation frames
-       can later replace THIS renderer only.
-    ====================================================== */
-
-    function drawForecast(now) {
-        const animation =
-            forecast.animation;
-
-        const elapsed =
-            (
-                now -
-                forecast.animationStarted
-            ) /
-            1000;
-
-        let visualX =
-            forecast.x;
-
-        let visualY =
-            forecast.y;
-
-        let rotation = 0;
-        let alpha = 1;
-
-        let cloakOffset =
-            Math.sin(
-                now * 0.004
-            ) * 2;
+    ctx.restore();
 
 
-        /*
-            VISUAL DODGE ONLY.
+    /*
+        Paradox decoy.
+    */
 
-            These offsets DO NOT touch forecast.x/y.
-        */
+    if (
+        now <
+        states.decoyUntil
+    ) {
 
-        if (
-            animation ===
-            "dodge_left"
-        ) {
-            visualX -= 10;
-            rotation = -0.15;
-        }
-
-        else if (
-            animation ===
-            "dodge_right"
-        ) {
-            visualX += 10;
-            rotation = 0.15;
-        }
+        drawForecastDecoy(now);
+    }
+}
 
 
-        if (
-            animation ===
-            "low_stamina"
-        ) {
-            visualY += 3;
-        }
+/* ==========================================================
+   FALLBACK FORECAST
+
+   NOT the final asset.
+   It exists only so missing PNG frames don't crash V0.6.
+========================================================== */
+
+function drawForecastFallback(
+    animation,
+    now
+) {
+
+    ctx.save();
 
 
-        if (
-            animation ===
-            "exhausted"
-        ) {
-            visualY += 7;
+    ctx.shadowColor =
+        "#ff2020";
 
-            rotation =
-                Math.sin(
-                    elapsed * 8
-                ) *
-                0.025;
-        }
+    ctx.shadowBlur = 10;
 
 
-        if (
-            animation ===
-            "hit"
-        ) {
-            alpha =
-                0.55 +
-                Math.sin(
-                    elapsed * 40
-                ) *
-                0.25;
-        }
+    /*
+        Cloak
+    */
+
+    ctx.fillStyle =
+        "#090909";
 
 
-        if (
-            animation ===
-            "phase_change"
-        ) {
-            const pulse =
-                Math.sin(
-                    elapsed * 28
-                ) *
-                3;
-
-            visualY += pulse;
-        }
+    ctx.beginPath();
 
 
-        ctx.save();
+    ctx.moveTo(
+        -26,
+        28
+    );
+
+
+    ctx.lineTo(
+        -23,
+        -12
+    );
+
+
+    ctx.quadraticCurveTo(
+        -18,
+        -38,
+        0,
+        -40
+    );
+
+
+    ctx.quadraticCurveTo(
+        18,
+        -38,
+        23,
+        -12
+    );
+
+
+    ctx.lineTo(
+        26,
+        28
+    );
+
+
+    ctx.lineTo(
+        0,
+        19
+    );
+
+
+    ctx.closePath();
+
+
+    ctx.fill();
+
+
+    /*
+        Skull
+    */
+
+    ctx.shadowBlur = 0;
+
+
+    ctx.fillStyle =
+        "#eeeeee";
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        0,
+        -14,
+        16,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.fill();
+
+
+    ctx.fillRect(
+        -10,
+        -9,
+        20,
+        14
+    );
+
+
+    /*
+        Eye sockets
+    */
+
+    ctx.fillStyle =
+        "#050505";
+
+
+    ctx.fillRect(
+        -11,
+        -20,
+        8,
+        6
+    );
+
+
+    ctx.fillRect(
+        4,
+        -20,
+        8,
+        6
+    );
+
+
+    /*
+        Forecast eye
+    */
+
+    ctx.fillStyle =
+        "#ff2020";
+
+
+    ctx.shadowColor =
+        "#ff2020";
+
+
+    ctx.shadowBlur =
+        animation ===
+        "eye_activate"
+            ? 24
+            : 10;
+
+
+    ctx.fillRect(
+        5,
+        -19,
+        6,
+        4
+    );
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   PARADOX DECOY
+========================================================== */
+
+function drawForecastDecoy(now) {
+
+    ctx.save();
+
+
+    ctx.globalAlpha =
+        0.24 +
+        Math.sin(
+            now * 0.015
+        ) *
+        0.08;
+
+
+    ctx.translate(
+        states.decoyX,
+        states.decoyY
+    );
+
+
+    ctx.strokeStyle =
+        "#ff3030";
+
+
+    ctx.lineWidth = 2;
+
+
+    ctx.strokeRect(
+        -22,
+        -31,
+        44,
+        62
+    );
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   PROTAGONIST HEART
+========================================================== */
+
+function drawProtagonist(now) {
+
+    ctx.save();
+
+
+    ctx.translate(
+        protagonist.x,
+        protagonist.y
+    );
+
+
+    if (
+        now <
+        protagonist.frozenUntil
+    ) {
 
         ctx.globalAlpha =
-            Math.max(
-                0.15,
-                alpha
-            );
-
-        ctx.translate(
-            visualX,
-            visualY
-        );
-
-        ctx.rotate(rotation);
-
-
-        /* ------------------------------
-           HOOD / CLOAK
-        ------------------------------ */
-
-        ctx.shadowColor =
-            "#ff2020";
-
-        ctx.shadowBlur =
-            animation ===
-                "phase_change"
-                ? 26
-                : 8;
-
-
-        ctx.fillStyle =
-            "#080808";
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            -29,
-            28
-        );
-
-        ctx.lineTo(
-            -25,
-            -10
-        );
-
-        ctx.quadraticCurveTo(
-            -20,
-            -38,
-            0,
-            -40
-        );
-
-        ctx.quadraticCurveTo(
-            20,
-            -38,
-            25,
-            -10
-        );
-
-        ctx.lineTo(
-            29,
-            28 +
-            cloakOffset
-        );
-
-        ctx.lineTo(
-            10,
-            20
-        );
-
-        ctx.lineTo(
-            0,
-            30
-        );
-
-        ctx.lineTo(
-            -10,
-            20
-        );
-
-        ctx.closePath();
-
-        ctx.fill();
-
-
-        /* ------------------------------
-           SKULL
-        ------------------------------ */
-
-        ctx.shadowBlur = 0;
-
-        ctx.fillStyle =
-            "#eeeeee";
-
-        ctx.beginPath();
-
-        ctx.arc(
-            0,
-            -15,
-            17,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.fill();
-
-
-        ctx.fillRect(
-            -11,
-            -9,
-            22,
-            14
-        );
-
-
-        /* ------------------------------
-           EYES
-        ------------------------------ */
-
-        ctx.fillStyle =
-            "#070707";
-
-        ctx.fillRect(
-            -11,
-            -20,
-            8,
-            6
-        );
-
-        ctx.fillRect(
-            4,
-            -20,
-            8,
-            6
-        );
-
-
-        /*
-            Forecast eye.
-        */
-
-        ctx.shadowColor =
-            "#ff2020";
-
-        ctx.shadowBlur = 13;
-
-        ctx.fillStyle =
-            "#ff2020";
-
-        ctx.fillRect(
-            5,
-            -19,
-            6,
-            4
-        );
-
-
-        if (
-            animation ===
-                "eye_activate" ||
-            animation ===
-                "phase_change"
-        ) {
-            ctx.shadowBlur = 24;
-
-            ctx.fillRect(
-                3,
-                -21,
-                10,
-                8
-            );
-        }
-
-
-        /* ------------------------------
-           MOUTH
-        ------------------------------ */
-
-        ctx.shadowBlur = 0;
-
-        ctx.strokeStyle =
-            "#090909";
-
-        ctx.lineWidth = 2;
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            -8,
-            -4
-        );
-
-        ctx.lineTo(
-            8,
-            -4
-        );
-
-        ctx.stroke();
-
-
-        /* ------------------------------
-           ARMS / ATTACK POSE
-        ------------------------------ */
-
-        drawForecastPose(
-            animation,
-            elapsed
-        );
-
-        ctx.restore();
+            0.55;
     }
 
 
-    /* ======================================================
-       FORECAST ANIMATION POSES
-    ====================================================== */
+    ctx.fillStyle =
+        "#ff2020";
 
-    function drawForecastPose(
-        animation,
-        elapsed
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        0,
+        11
+    );
+
+
+    ctx.lineTo(
+        -10,
+        1
+    );
+
+
+    ctx.bezierCurveTo(
+        -15,
+        -9,
+        -4,
+        -15,
+        0,
+        -7
+    );
+
+
+    ctx.bezierCurveTo(
+        4,
+        -15,
+        15,
+        -9,
+        10,
+        1
+    );
+
+
+    ctx.closePath();
+
+
+    ctx.fill();
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   PLAYER PROJECTILES
+
+   DIFFERENT VISUAL FOR EVERY CLASS.
+========================================================== */
+
+function drawPlayerProjectiles(now) {
+
+    for (
+        const projectile of
+        playerProjectiles
     ) {
-        ctx.lineWidth = 4;
 
-        ctx.strokeStyle =
-            "#eeeeee";
-
-
-        if (
-            animation ===
-                "glock_fire" ||
-            animation ===
-                "smg_fire" ||
-            animation ===
-                "ar_fire" ||
-            animation ===
-                "dmr_fire" ||
-            animation ===
-                "shotgun_fire"
-        ) {
-            /*
-                Stylized game weapon pose.
-            */
-
-            ctx.beginPath();
-
-            ctx.moveTo(
-                14,
-                4
-            );
-
-            ctx.lineTo(
-                32,
-                8
-            );
-
-            ctx.stroke();
+        drawProjectileTrail(
+            projectile
+        );
 
 
-            ctx.fillStyle =
-                "#161616";
-
-            let length = 22;
-
-            if (
-                animation ===
-                "smg_fire"
-            ) {
-                length = 30;
-            }
-
-            else if (
-                animation ===
-                "ar_fire"
-            ) {
-                length = 38;
-            }
-
-            else if (
-                animation ===
-                "dmr_fire"
-            ) {
-                length = 44;
-            }
-
-            else if (
-                animation ===
-                "shotgun_fire"
-            ) {
-                length = 42;
-            }
-
-
-            ctx.fillRect(
-                27,
-                3,
-                length,
-                7
-            );
-
-
-            if (
-                animation !==
-                "dmr_fire"
-            ) {
-                const flash =
-                    Math.max(
-                        0,
-                        Math.sin(
-                            elapsed *
-                            45
-                        )
-                    );
-
-                if (
-                    flash > 0.35
-                ) {
-                    ctx.fillStyle =
-                        "#ff3030";
-
-                    ctx.beginPath();
-
-                    ctx.moveTo(
-                        27 +
-                        length,
-                        6
-                    );
-
-                    ctx.lineTo(
-                        38 +
-                        length,
-                        0
-                    );
-
-                    ctx.lineTo(
-                        34 +
-                        length,
-                        7
-                    );
-
-                    ctx.lineTo(
-                        39 +
-                        length,
-                        14
-                    );
-
-                    ctx.closePath();
-
-                    ctx.fill();
-                }
-            }
-        }
-
-
-        else if (
-            animation ===
-            "bone_control"
-        ) {
-            ctx.strokeStyle =
-                "#ff3030";
-
-            ctx.beginPath();
-
-            ctx.moveTo(
-                -17,
-                4
-            );
-
-            ctx.lineTo(
-                -35,
-                -4
-            );
-
-            ctx.moveTo(
-                17,
-                4
-            );
-
-            ctx.lineTo(
-                35,
-                -4
-            );
-
-            ctx.stroke();
-
-
-            ctx.fillStyle =
-                "#eeeeee";
-
-            drawMiniBone(
-                -42,
-                -8,
-                elapsed
-            );
-
-            drawMiniBone(
-                42,
-                -8,
-                -elapsed
-            );
-        }
-
-
-        else if (
-            animation ===
-                "gaster_charge" ||
-            animation ===
-                "gaster_fire"
-        ) {
-            ctx.strokeStyle =
-                "#ff3030";
-
-            ctx.shadowColor =
-                "#ff3030";
-
-            ctx.shadowBlur =
-                animation ===
-                    "gaster_fire"
-                    ? 24
-                    : 12;
-
-            ctx.beginPath();
-
-            ctx.arc(
-                0,
-                8,
-                20 +
-                Math.sin(
-                    elapsed * 20
-                ) *
-                4,
-                0,
-                Math.PI * 2
-            );
-
-            ctx.stroke();
-
-            ctx.shadowBlur = 0;
-        }
-
-
-        else if (
-            animation ===
-                "scythe_summon"
-        ) {
-            ctx.strokeStyle =
-                "#ff3030";
-
-            ctx.globalAlpha *=
-                0.75;
-
-            ctx.beginPath();
-
-            ctx.arc(
-                35,
-                0,
-                25 +
-                Math.sin(
-                    elapsed * 18
-                ) *
-                5,
-                0,
-                Math.PI * 2
-            );
-
-            ctx.stroke();
-        }
-
-
-        else if (
-            animation ===
-                "eye_activate"
-        ) {
-            ctx.strokeStyle =
-                "#ff3030";
-
-            ctx.beginPath();
-
-            ctx.moveTo(
-                -20,
-                5
-            );
-
-            ctx.lineTo(
-                -34,
-                -3
-            );
-
-            ctx.moveTo(
-                20,
-                5
-            );
-
-            ctx.lineTo(
-                34,
-                -3
-            );
-
-            ctx.stroke();
-        }
-    }
-
-
-    function drawMiniBone(
-        x,
-        y,
-        phase
-    ) {
         ctx.save();
 
-        ctx.translate(
-            x,
-            y +
-            Math.sin(
-                phase * 6
-            ) *
-            4
-        );
-
-        ctx.fillRect(
-            -8,
-            -2,
-            16,
-            4
-        );
-
-        ctx.beginPath();
-
-        ctx.arc(
-            -8,
-            0,
-            4,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.arc(
-            8,
-            0,
-            4,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-
-    /* ======================================================
-       PROTAGONIST HEART
-    ====================================================== */
-
-    function drawEnemy(now) {
-        ctx.save();
 
         ctx.translate(
-            enemy.x,
-            enemy.y
+            projectile.x,
+            projectile.y
         );
 
-        if (
-            now <
-            enemy.frozenUntil
-        ) {
-            ctx.globalAlpha = 0.65;
-        }
 
-        ctx.fillStyle =
-            "#ff2020";
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            0,
-            11
-        );
-
-        ctx.lineTo(
-            -10,
-            1
-        );
-
-        ctx.bezierCurveTo(
-            -15,
-            -9,
-            -4,
-            -15,
-            0,
-            -7
-        );
-
-        ctx.bezierCurveTo(
-            4,
-            -15,
-            15,
-            -9,
-            10,
-            1
-        );
-
-        ctx.closePath();
-
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-
-    /* ======================================================
-       FORECAST PROJECTILES
-
-       EACH WEAPON HAS ITS OWN VISUAL.
-    ====================================================== */
-
-    function drawForecastProjectiles() {
-        for (
-            const projectile of
-            forecastProjectiles
-        ) {
-            ctx.save();
-
-            const angle =
-                Math.atan2(
-                    projectile.vy,
-                    projectile.vx
-                );
-
-            ctx.translate(
-                projectile.x,
-                projectile.y
+        const angle =
+            Math.atan2(
+                projectile.vy,
+                projectile.vx
             );
 
-            ctx.rotate(angle);
+
+        ctx.rotate(angle);
 
 
-            switch (
-                projectile.type
-            ) {
-
-                /* --------------------------
-                   GLOCK
-                -------------------------- */
-
-                case "glockBullet":
-                    ctx.fillStyle =
-                        "#ffffff";
-
-                    ctx.fillRect(
-                        -6,
-                        -2,
-                        13,
-                        4
-                    );
-
-                    ctx.fillStyle =
-                        "#ff3030";
-
-                    ctx.fillRect(
-                        -14,
-                        -1,
-                        8,
-                        2
-                    );
-                    break;
-
-
-                /* --------------------------
-                   SMG
-                -------------------------- */
-
-                case "smgBullet":
-                    ctx.fillStyle =
-                        "#dddddd";
-
-                    ctx.fillRect(
-                        -5,
-                        -1,
-                        10,
-                        3
-                    );
-
-                    ctx.globalAlpha =
-                        0.55;
-
-                    ctx.fillStyle =
-                        "#ff3030";
-
-                    ctx.fillRect(
-                        -10,
-                        -1,
-                        5,
-                        2
-                    );
-                    break;
-
-
-                /* --------------------------
-                   AR
-                -------------------------- */
-
-                case "arTracer":
-                    ctx.strokeStyle =
-                        "#ff4040";
-
-                    ctx.lineWidth = 2;
-
-                    ctx.beginPath();
-
-                    ctx.moveTo(
-                        -24,
-                        0
-                    );
-
-                    ctx.lineTo(
-                        8,
-                        0
-                    );
-
-                    ctx.stroke();
-
-                    ctx.fillStyle =
-                        "#ffffff";
-
-                    ctx.fillRect(
-                        5,
-                        -2,
-                        9,
-                        4
-                    );
-                    break;
-
-
-                /* --------------------------
-                   DMR
-                -------------------------- */
-
-                case "dmrRound":
-                    ctx.shadowColor =
-                        "#ff3030";
-
-                    ctx.shadowBlur = 8;
-
-                    ctx.strokeStyle =
-                        "#ffffff";
-
-                    ctx.lineWidth = 3;
-
-                    ctx.beginPath();
-
-                    ctx.moveTo(
-                        -42,
-                        0
-                    );
-
-                    ctx.lineTo(
-                        10,
-                        0
-                    );
-
-                    ctx.stroke();
-
-                    ctx.fillStyle =
-                        "#ff3030";
-
-                    ctx.fillRect(
-                        7,
-                        -3,
-                        13,
-                        6
-                    );
-                    break;
-
-
-                /* --------------------------
-                   SHOTGUN
-                -------------------------- */
-
-                case "shotgunPellet":
-                    ctx.fillStyle =
-                        "#eeeeee";
-
-                    ctx.fillRect(
-                        -3,
-                        -2,
-                        7,
-                        4
-                    );
-                    break;
-
-
-                /* --------------------------
-                   BONE
-                -------------------------- */
-
-                case "bone":
-                    ctx.fillStyle =
-                        "#eeeeee";
-
-                    ctx.fillRect(
-                        -12,
-                        -3,
-                        24,
-                        6
-                    );
-
-                    ctx.beginPath();
-
-                    ctx.arc(
-                        -12,
-                        -3,
-                        5,
-                        0,
-                        Math.PI * 2
-                    );
-
-                    ctx.arc(
-                        -12,
-                        3,
-                        5,
-                        0,
-                        Math.PI * 2
-                    );
-
-                    ctx.arc(
-                        12,
-                        -3,
-                        5,
-                        0,
-                        Math.PI * 2
-                    );
-
-                    ctx.arc(
-                        12,
-                        3,
-                        5,
-                        0,
-                        Math.PI * 2
-                    );
-
-                    ctx.fill();
-                    break;
-
-
-                /* --------------------------
-                   CROSSFIRE
-                -------------------------- */
-
-                case "crossfire":
-                    ctx.fillStyle =
-                        "#ff3030";
-
-                    ctx.beginPath();
-
-                    ctx.moveTo(
-                        11,
-                        0
-                    );
-
-                    ctx.lineTo(
-                        -8,
-                        -6
-                    );
-
-                    ctx.lineTo(
-                        -8,
-                        6
-                    );
-
-                    ctx.closePath();
-
-                    ctx.fill();
-                    break;
-            }
-
-            ctx.restore();
-        }
-    }
-
-
-    /* ======================================================
-       PROTAGONIST PROJECTILES
-    ====================================================== */
-
-    function drawEnemyProjectiles() {
-        for (
-            const projectile of
-            enemyProjectiles
+        switch (
+            projectile.type
         ) {
-            ctx.save();
 
-            ctx.translate(
-                projectile.x,
-                projectile.y
-            );
+            /* GLOCK */
 
-            if (
-                projectile.type ===
-                "heavy"
-            ) {
-                ctx.strokeStyle =
+            case "glock_bullet":
+
+                ctx.fillStyle =
                     "#ffffff";
 
-                ctx.lineWidth = 4;
+
+                ctx.fillRect(
+                    -5,
+                    -2,
+                    11,
+                    4
+                );
+
+
+                ctx.fillStyle =
+                    "#ff3030";
+
+
+                ctx.fillRect(
+                    -11,
+                    -1,
+                    6,
+                    2
+                );
+
+                break;
+
+
+            /* SMG */
+
+            case "smg_bullet":
+
+                ctx.fillStyle =
+                    "#ffffff";
+
+
+                ctx.fillRect(
+                    -4,
+                    -1,
+                    8,
+                    3
+                );
+
+
+                ctx.globalAlpha =
+                    0.7;
+
+
+                ctx.fillStyle =
+                    "#ff3030";
+
+
+                ctx.fillRect(
+                    -9,
+                    -1,
+                    5,
+                    2
+                );
+
+                break;
+
+
+            /* AR */
+
+            case "ar_round":
+
+                ctx.strokeStyle =
+                    "#ff3030";
+
+
+                ctx.lineWidth = 2;
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    -22,
+                    0
+                );
+
+
+                ctx.lineTo(
+                    8,
+                    0
+                );
+
+
+                ctx.stroke();
+
+
+                ctx.fillStyle =
+                    "#ffffff";
+
+
+                ctx.fillRect(
+                    5,
+                    -2,
+                    9,
+                    4
+                );
+
+                break;
+
+
+            /* DMR */
+
+            case "dmr_round":
 
                 ctx.shadowColor =
                     "#ff3030";
 
-                ctx.shadowBlur = 8;
-            }
 
-            else {
+                ctx.shadowBlur = 10;
+
+
+                ctx.strokeStyle =
+                    "#ffffff";
+
+
+                ctx.lineWidth = 3;
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    -38,
+                    0
+                );
+
+
+                ctx.lineTo(
+                    12,
+                    0
+                );
+
+
+                ctx.stroke();
+
+
+                ctx.fillStyle =
+                    "#ff3030";
+
+
+                ctx.fillRect(
+                    8,
+                    -3,
+                    13,
+                    6
+                );
+
+                break;
+
+
+            /* SHOTGUN */
+
+            case "shotgun_pellet":
+
+                ctx.fillStyle =
+                    "#eeeeee";
+
+
+                ctx.fillRect(
+                    -3,
+                    -2,
+                    7,
+                    4
+                );
+
+                break;
+
+
+            /* BONE */
+
+            case "bone":
+
+                drawBoneProjectile();
+
+                break;
+
+
+            /* CONSTRUCT */
+
+            case "construct_shard":
+
+                ctx.fillStyle =
+                    "#ff3030";
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    10,
+                    0
+                );
+
+
+                ctx.lineTo(
+                    -8,
+                    -6
+                );
+
+
+                ctx.lineTo(
+                    -3,
+                    0
+                );
+
+
+                ctx.lineTo(
+                    -8,
+                    6
+                );
+
+
+                ctx.closePath();
+
+
+                ctx.fill();
+
+                break;
+
+
+            /* CROSSFIRE */
+
+            case "crossfire_shard":
+
                 ctx.strokeStyle =
                     "#ff3030";
 
+
+                ctx.fillStyle =
+                    "#ffffff";
+
+
                 ctx.lineWidth = 2;
-            }
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    11,
+                    0
+                );
+
+
+                ctx.lineTo(
+                    -7,
+                    -5
+                );
+
+
+                ctx.lineTo(
+                    -7,
+                    5
+                );
+
+
+                ctx.closePath();
+
+
+                ctx.fill();
+
+
+                ctx.stroke();
+
+                break;
+        }
+
+
+        ctx.restore();
+    }
+}
+
+
+/* ==========================================================
+   PROJECTILE TRAILS
+========================================================== */
+
+function drawProjectileTrail(
+    projectile
+) {
+
+    if (
+        !projectile.trail ||
+        projectile.trail.length < 2
+    ) {
+        return;
+    }
+
+
+    ctx.save();
+
+
+    ctx.strokeStyle =
+        projectile.type ===
+        "dmr_round"
+            ? "#ffffff"
+            : "#ff3030";
+
+
+    ctx.lineWidth =
+        projectile.type ===
+        "dmr_round"
+            ? 2
+            : 1;
+
+
+    ctx.globalAlpha = 0.35;
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        projectile.trail[0].x,
+        projectile.trail[0].y
+    );
+
+
+    for (
+        let i = 1;
+        i <
+        projectile.trail.length;
+        i++
+    ) {
+
+        ctx.lineTo(
+            projectile.trail[i].x,
+            projectile.trail[i].y
+        );
+    }
+
+
+    ctx.stroke();
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   BONE PROJECTILE
+========================================================== */
+
+function drawBoneProjectile() {
+
+    ctx.fillStyle =
+        "#eeeeee";
+
+
+    ctx.fillRect(
+        -12,
+        -3,
+        24,
+        6
+    );
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        -12,
+        -4,
+        5,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.arc(
+        -12,
+        4,
+        5,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.arc(
+        12,
+        -4,
+        5,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.arc(
+        12,
+        4,
+        5,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.fill();
+}
+
+
+/* ==========================================================
+   HOSTILE PROJECTILES
+========================================================== */
+
+function drawHostileProjectiles(now) {
+
+    for (
+        const projectile of
+        hostileProjectiles
+    ) {
+
+        ctx.save();
+
+
+        ctx.translate(
+            projectile.x,
+            projectile.y
+        );
+
+
+        if (
+            projectile.type ===
+            "protagonist_heavy"
+        ) {
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+
+            ctx.lineWidth = 4;
+
+
+            ctx.shadowColor =
+                "#ff3030";
+
+
+            ctx.shadowBlur = 12;
+
 
             ctx.beginPath();
+
 
             ctx.arc(
                 0,
@@ -3766,1126 +5614,2342 @@ const Battle = (() => {
                 Math.PI * 2
             );
 
+
             ctx.stroke();
 
-            ctx.restore();
-        }
-    }
-
-
-    /* ======================================================
-       HAZARD RENDERING
-    ====================================================== */
-
-    function drawHazards(now) {
-        for (
-            const hazard of hazards
-        ) {
-            const active =
-                now >=
-                hazard.activateAt;
-
-            ctx.save();
-
-            ctx.strokeStyle =
-                active
-                    ? "#ff3030"
-                    : "rgba(255,48,48,0.4)";
-
-            ctx.fillStyle =
-                active
-                    ? "#eeeeee"
-                    : "rgba(238,238,238,0.25)";
-
-            ctx.lineWidth = 2;
-
-            if (!active) {
-                ctx.setLineDash([
-                    4,
-                    5
-                ]);
-            }
-
-
-            if (
-                hazard.type ===
-                "boneWall"
-            ) {
-                /*
-                    Bone rising vertically.
-                */
-
-                const rise =
-                    active
-                        ? 1
-                        : 0.35;
-
-                const boneHeight =
-                    70 * rise;
-
-                ctx.fillRect(
-                    hazard.x - 4,
-                    hazard.y -
-                        boneHeight /
-                        2,
-
-                    8,
-                    boneHeight
-                );
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    hazard.x,
-                    hazard.y -
-                        boneHeight /
-                        2,
-                    7,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.arc(
-                    hazard.x,
-                    hazard.y +
-                        boneHeight /
-                        2,
-                    7,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.fill();
-            }
-
-
-            else if (
-                hazard.type ===
-                "construct"
-            ) {
-                ctx.translate(
-                    hazard.x,
-                    hazard.y
-                );
-
-                ctx.rotate(
-                    performance.now() *
-                    0.002
-                );
-
-                ctx.strokeRect(
-                    -18,
-                    -18,
-                    36,
-                    36
-                );
-
-                ctx.rotate(
-                    Math.PI / 4
-                );
-
-                ctx.strokeRect(
-                    -10,
-                    -10,
-                    20,
-                    20
-                );
-            }
-
-
-            else if (
-                hazard.type ===
-                "forecastTrap"
-            ) {
-                ctx.beginPath();
-
-                ctx.arc(
-                    hazard.x,
-                    hazard.y,
-                    hazard.radius,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-
-                ctx.beginPath();
-
-                ctx.moveTo(
-                    hazard.x -
-                        hazard.radius,
-                    hazard.y
-                );
-
-                ctx.lineTo(
-                    hazard.x +
-                        hazard.radius,
-                    hazard.y
-                );
-
-                ctx.moveTo(
-                    hazard.x,
-                    hazard.y -
-                        hazard.radius
-                );
-
-                ctx.lineTo(
-                    hazard.x,
-                    hazard.y +
-                        hazard.radius
-                );
-
-                ctx.stroke();
-            }
-
-
-            else if (
-                hazard.type ===
-                "falseFuture"
-            ) {
-                ctx.strokeStyle =
-                    active
-                        ? "#ffffff"
-                        : "#ff3030";
-
-                ctx.lineWidth =
-                    active
-                        ? 5
-                        : 2;
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    hazard.x,
-                    hazard.y,
-                    hazard.radius,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-            }
-
-
-            else if (
-                hazard.type ===
-                "inevitable"
-            ) {
-                ctx.shadowColor =
-                    "#ff3030";
-
-                ctx.shadowBlur =
-                    active
-                        ? 20
-                        : 5;
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    hazard.x,
-                    hazard.y,
-                    hazard.radius,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    hazard.x,
-                    hazard.y,
-                    hazard.radius *
-                    0.55,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-            }
-
-            ctx.restore();
-        }
-    }
-
-
-    /* ======================================================
-       ILLUSIONS
-    ====================================================== */
-
-    function drawIllusions(now) {
-        for (
-            const illusion of
-            illusions
-        ) {
-            ctx.save();
-
-            ctx.globalAlpha =
-                0.18 +
-                Math.sin(
-                    now * 0.012 +
-                    illusion.x
-                ) *
-                0.07;
-
-            ctx.strokeStyle =
-                "#ff3030";
-
-            ctx.lineWidth = 2;
-
-            ctx.strokeRect(
-                illusion.x - 18,
-                illusion.y - 25,
-                36,
-                50
-            );
 
             ctx.beginPath();
 
+
+            ctx.moveTo(
+                -projectile.radius,
+                0
+            );
+
+
+            ctx.lineTo(
+                projectile.radius,
+                0
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        else if (
+            projectile.type ===
+            "protagonist_spread"
+        ) {
+
+            ctx.fillStyle =
+                "#ff3030";
+
+
+            ctx.rotate(
+                Math.PI / 4
+            );
+
+
+            ctx.fillRect(
+                -4,
+                -4,
+                8,
+                8
+            );
+        }
+
+
+        else {
+
+            ctx.fillStyle =
+                "#ffffff";
+
+
+            ctx.beginPath();
+
+
             ctx.arc(
-                illusion.x,
-                illusion.y - 12,
-                10,
+                0,
+                0,
+                projectile.radius,
                 0,
                 Math.PI * 2
             );
 
+
+            ctx.fill();
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.lineWidth = 2;
+
+
             ctx.stroke();
-
-            ctx.restore();
         }
+
+
+        ctx.restore();
     }
+}
 
 
-    /* ======================================================
-       GASTER BEAM
-    ====================================================== */
+/* ==========================================================
+   HAZARD DRAWING
+========================================================== */
 
-    function drawBeam(now) {
-        if (!beam) return;
+function drawHazards(now) {
+
+    for (
+        const hazard of hazards
+    ) {
+
+        const active =
+            now >=
+            hazard.activateAt;
+
 
         ctx.save();
 
-        const charging =
-            now <
-            beam.chargeUntil;
+
+        if (
+            hazard.type ===
+            "bone_wall"
+        ) {
+
+            drawBoneWallHazard(
+                hazard,
+                active,
+                now
+            );
+        }
+
+
+        else if (
+            hazard.type ===
+            "forecast_trap"
+        ) {
+
+            drawForecastTrap(
+                hazard,
+                active,
+                now
+            );
+        }
+
+
+        else if (
+            hazard.type ===
+            "false_future_strike"
+        ) {
+
+            drawFalseFutureStrike(
+                hazard,
+                active
+            );
+        }
+
+
+        else if (
+            hazard.type ===
+            "inevitable_strike"
+        ) {
+
+            drawInevitableStrike(
+                hazard,
+                active,
+                now
+            );
+        }
+
+
+        ctx.restore();
+    }
+}
+
+
+/* ==========================================================
+   BONE WALL VISUAL
+========================================================== */
+
+function drawBoneWallHazard(
+    hazard,
+    active,
+    now
+) {
+
+    const height =
+        active
+            ? 78
+            : 18;
+
+
+    ctx.fillStyle =
+        active
+            ? "#eeeeee"
+            : "rgba(238,238,238,0.28)";
+
+
+    ctx.fillRect(
+        hazard.x - 4,
+        hazard.y -
+            height / 2,
+
+        8,
+        height
+    );
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        hazard.x,
+        hazard.y -
+            height / 2,
+        7,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.arc(
+        hazard.x,
+        hazard.y +
+            height / 2,
+        7,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.fill();
+
+
+    if (!active) {
 
         ctx.strokeStyle =
-            charging
-                ? "rgba(255,48,48,0.45)"
-                : "#ff3030";
+            "#ff3030";
 
-        ctx.lineWidth =
-            charging
-                ? 2
-                : 26;
+
+        ctx.lineWidth = 1;
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            hazard.x,
+            hazard.y - 50
+        );
+
+
+        ctx.lineTo(
+            hazard.x,
+            hazard.y + 50
+        );
+
+
+        ctx.stroke();
+    }
+}
+
+
+/* ==========================================================
+   FORECAST TRAP VISUAL
+========================================================== */
+
+function drawForecastTrap(
+    hazard,
+    active,
+    now
+) {
+
+    const pulse =
+        1 +
+        Math.sin(
+            now * 0.018
+        ) *
+        0.12;
+
+
+    ctx.translate(
+        hazard.x,
+        hazard.y
+    );
+
+
+    ctx.scale(
+        pulse,
+        pulse
+    );
+
+
+    ctx.strokeStyle =
+        active
+            ? "#ffffff"
+            : "#ff3030";
+
+
+    ctx.lineWidth =
+        active
+            ? 4
+            : 2;
+
+
+    if (!active) {
+
+        ctx.setLineDash([
+            5,
+            5
+        ]);
+    }
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        0,
+        0,
+        hazard.radius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        -hazard.radius,
+        0
+    );
+
+
+    ctx.lineTo(
+        hazard.radius,
+        0
+    );
+
+
+    ctx.moveTo(
+        0,
+        -hazard.radius
+    );
+
+
+    ctx.lineTo(
+        0,
+        hazard.radius
+    );
+
+
+    ctx.stroke();
+}
+
+
+/* ==========================================================
+   FALSE FUTURE STRIKE
+========================================================== */
+
+function drawFalseFutureStrike(
+    hazard,
+    active
+) {
+
+    ctx.strokeStyle =
+        active
+            ? "#ffffff"
+            : "#ff3030";
+
+
+    ctx.shadowColor =
+        "#ff3030";
+
+
+    ctx.shadowBlur =
+        active
+            ? 18
+            : 5;
+
+
+    ctx.lineWidth =
+        active
+            ? 6
+            : 2;
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        hazard.x,
+        hazard.y,
+        hazard.radius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.stroke();
+
+
+    if (active) {
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            hazard.x -
+                hazard.radius,
+            hazard.y -
+                hazard.radius
+        );
+
+
+        ctx.lineTo(
+            hazard.x +
+                hazard.radius,
+            hazard.y +
+                hazard.radius
+        );
+
+
+        ctx.moveTo(
+            hazard.x +
+                hazard.radius,
+            hazard.y -
+                hazard.radius
+        );
+
+
+        ctx.lineTo(
+            hazard.x -
+                hazard.radius,
+            hazard.y +
+                hazard.radius
+        );
+
+
+        ctx.stroke();
+    }
+}
+
+
+/* ==========================================================
+   INEVITABLE VISUAL
+========================================================== */
+
+function drawInevitableStrike(
+    hazard,
+    active,
+    now
+) {
+
+    const rotation =
+        now * 0.004;
+
+
+    ctx.translate(
+        hazard.x,
+        hazard.y
+    );
+
+
+    ctx.rotate(rotation);
+
+
+    ctx.strokeStyle =
+        active
+            ? "#ffffff"
+            : "#ff3030";
+
+
+    ctx.shadowColor =
+        "#ff3030";
+
+
+    ctx.shadowBlur =
+        active
+            ? 24
+            : 8;
+
+
+    ctx.lineWidth =
+        active
+            ? 5
+            : 2;
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        0,
+        0,
+        hazard.radius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.rotate(
+        -rotation * 2
+    );
+
+
+    ctx.beginPath();
+
+
+    ctx.rect(
+        -hazard.radius * 0.55,
+        -hazard.radius * 0.55,
+
+        hazard.radius * 1.1,
+        hazard.radius * 1.1
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        0,
+        0,
+        hazard.radius * 0.35,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.stroke();
+}
+
+
+/* ==========================================================
+   CONSTRUCT DRAWING
+========================================================== */
+
+function drawConstructs(now) {
+
+    for (
+        const construct of
+        constructs
+    ) {
+
+        ctx.save();
+
+
+        ctx.translate(
+            construct.x,
+            construct.y
+        );
+
+
+        ctx.rotate(
+            construct.angle
+        );
+
+
+        ctx.strokeStyle =
+            "#ff3030";
+
 
         ctx.shadowColor =
             "#ff3030";
 
-        ctx.shadowBlur =
-            charging
-                ? 6
-                : 24;
 
-        if (charging) {
-            ctx.setLineDash([
-                6,
-                7
-            ]);
-        }
+        ctx.shadowBlur = 9;
 
-        const angle =
-            Math.atan2(
-                enemy.y -
-                    forecast.y,
 
-                enemy.x -
-                    forecast.x
-            );
+        ctx.lineWidth = 2;
 
-        const beamLength =
-            Math.max(
-                width,
-                height
-            ) *
-            1.5;
 
         ctx.beginPath();
 
+
         ctx.moveTo(
-            forecast.x,
-            forecast.y
+            0,
+            -17
         );
+
 
         ctx.lineTo(
-            forecast.x +
-                Math.cos(angle) *
-                beamLength,
-
-            forecast.y +
-                Math.sin(angle) *
-                beamLength
+            15,
+            9
         );
+
+
+        ctx.lineTo(
+            0,
+            4
+        );
+
+
+        ctx.lineTo(
+            -15,
+            9
+        );
+
+
+        ctx.closePath();
+
 
         ctx.stroke();
 
-        if (!charging) {
-            ctx.strokeStyle =
-                "#ffffff";
-
-            ctx.lineWidth = 7;
-
-            ctx.shadowBlur = 0;
-
-            ctx.stroke();
-        }
 
         ctx.restore();
     }
+}
 
 
-    /* ======================================================
-       EXECUTION SCYTHE
-    ====================================================== */
+/* ==========================================================
+   ILLUSION DRAWING
+========================================================== */
 
-    function drawScythe(now) {
-        if (!scythe) return;
+function drawIllusions(now) {
 
-        const progress =
+    for (
+        const illusion of
+        illusions
+    ) {
+
+        ctx.save();
+
+
+        ctx.globalAlpha =
+            0.20 +
+            Math.sin(
+                now * 0.012 +
+                illusion.phase
+            ) *
+            0.08;
+
+
+        ctx.translate(
+            illusion.x,
+            illusion.y
+        );
+
+
+        ctx.strokeStyle =
+            "#ff3030";
+
+
+        ctx.lineWidth = 2;
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            0,
+            -12,
+            12,
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.stroke();
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            -18,
+            28
+        );
+
+
+        ctx.lineTo(
+            -14,
+            -2
+        );
+
+
+        ctx.lineTo(
+            14,
+            -2
+        );
+
+
+        ctx.lineTo(
+            18,
+            28
+        );
+
+
+        ctx.stroke();
+
+
+        ctx.restore();
+    }
+}
+
+
+/* ==========================================================
+   GASTER RENDERER
+========================================================== */
+
+function drawGaster(now) {
+
+    if (!activeBeam) {
+        return;
+    }
+
+
+    const beamEnd =
+        getBeamEnd(
+            activeBeam
+        );
+
+
+    const charging =
+        now <
+        activeBeam.chargeUntil;
+
+
+    ctx.save();
+
+
+    /*
+        Gaster hand / emitter.
+    */
+
+    const angle =
+        Math.atan2(
+
+            activeBeam.targetY -
+            activeBeam.y,
+
+            activeBeam.targetX -
+            activeBeam.x
+
+        );
+
+
+    const emitterX =
+        activeBeam.x +
+        Math.cos(angle) *
+        42;
+
+
+    const emitterY =
+        activeBeam.y +
+        Math.sin(angle) *
+        42;
+
+
+    ctx.translate(
+        emitterX,
+        emitterY
+    );
+
+
+    ctx.rotate(angle);
+
+
+    ctx.strokeStyle =
+        "#eeeeee";
+
+
+    ctx.fillStyle =
+        "#090909";
+
+
+    ctx.shadowColor =
+        "#ff3030";
+
+
+    ctx.shadowBlur =
+        charging
+            ? 10
+            : 22;
+
+
+    ctx.lineWidth = 3;
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        -18,
+        -15
+    );
+
+
+    ctx.lineTo(
+        18,
+        -10
+    );
+
+
+    ctx.lineTo(
+        25,
+        0
+    );
+
+
+    ctx.lineTo(
+        18,
+        10
+    );
+
+
+    ctx.lineTo(
+        -18,
+        15
+    );
+
+
+    ctx.closePath();
+
+
+    ctx.fill();
+
+
+    ctx.stroke();
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        8,
+        0,
+        6,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.restore();
+
+
+    /*
+        Charge line / beam.
+    */
+
+    ctx.save();
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        activeBeam.x,
+        activeBeam.y
+    );
+
+
+    ctx.lineTo(
+        beamEnd.x,
+        beamEnd.y
+    );
+
+
+    if (charging) {
+
+        ctx.strokeStyle =
+            "rgba(255,48,48,0.65)";
+
+
+        ctx.lineWidth = 2;
+
+
+        ctx.setLineDash([
+            7,
+            6
+        ]);
+    }
+
+
+    else {
+
+        ctx.shadowColor =
+            "#ff3030";
+
+
+        ctx.shadowBlur = 24;
+
+
+        ctx.strokeStyle =
+            "#ff3030";
+
+
+        ctx.lineWidth =
+            activeBeam.width;
+    }
+
+
+    ctx.stroke();
+
+
+    if (!charging) {
+
+        ctx.shadowBlur = 0;
+
+
+        ctx.strokeStyle =
+            "#ffffff";
+
+
+        ctx.lineWidth =
+            activeBeam.width *
+            0.30;
+
+
+        ctx.stroke();
+    }
+
+
+    ctx.restore();
+}
+
+
+/* ==========================================================
+   GASTER BEAM END
+========================================================== */
+
+function getBeamEnd(beam) {
+
+    const angle =
+        Math.atan2(
+
+            beam.targetY -
+            beam.y,
+
+            beam.targetX -
+            beam.x
+
+        );
+
+
+    const length =
+        Math.max(
+            width,
+            height
+        ) * 1.7;
+
+
+    return {
+
+        x:
+            beam.x +
+            Math.cos(angle) *
+            length,
+
+        y:
+            beam.y +
+            Math.sin(angle) *
+            length
+    };
+}
+
+
+/* ==========================================================
+   SCYTHE RENDERER
+========================================================== */
+
+function drawScythe(now) {
+
+    if (!activeScythe) {
+        return;
+    }
+
+
+    let progress = 0;
+
+
+    if (
+        activeScythe.stage ===
+        "swing"
+    ) {
+
+        progress =
             clamp(
+
                 (
                     now -
-                    scythe.started
+                    activeScythe.swingAt
                 ) /
-                (
-                    scythe.until -
-                    scythe.started
-                ),
+                620,
 
                 0,
                 1
             );
+    }
 
-        const angle =
-            -1.8 +
-            progress *
-            Math.PI *
-            1.55;
+
+    const angle =
+        activeScythe.stage ===
+        "summon"
+            ? -1.5
+            : -2 +
+              progress *
+              Math.PI *
+              1.55;
+
+
+    ctx.save();
+
+
+    ctx.translate(
+        forecast.worldX,
+        forecast.worldY
+    );
+
+
+    ctx.rotate(angle);
+
+
+    /*
+        Handle
+    */
+
+    ctx.strokeStyle =
+        "#eeeeee";
+
+
+    ctx.lineWidth = 5;
+
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+        0,
+        0
+    );
+
+
+    ctx.lineTo(
+        125,
+        0
+    );
+
+
+    ctx.stroke();
+
+
+    /*
+        Blade
+    */
+
+    ctx.strokeStyle =
+        "#ff3030";
+
+
+    ctx.shadowColor =
+        "#ff3030";
+
+
+    ctx.shadowBlur = 18;
+
+
+    ctx.lineWidth = 8;
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        116,
+        -22,
+        37,
+        0.25,
+        2.85
+    );
+
+
+    ctx.stroke();
+
+
+    ctx.restore();
+
+
+    /*
+        Slash trail
+    */
+
+    if (
+        activeScythe.stage ===
+        "swing"
+    ) {
 
         ctx.save();
 
-        ctx.translate(
-            forecast.x,
-            forecast.y
-        );
 
-        ctx.rotate(angle);
+        ctx.globalAlpha =
+            0.38;
+
 
         ctx.strokeStyle =
-            "#eeeeee";
+            "#ff3030";
+
 
         ctx.lineWidth = 5;
 
-        ctx.beginPath();
-
-        ctx.moveTo(
-            0,
-            0
-        );
-
-        ctx.lineTo(
-            120,
-            0
-        );
-
-        ctx.stroke();
-
-
-        ctx.strokeStyle =
-            "#ff3030";
-
-        ctx.shadowColor =
-            "#ff3030";
-
-        ctx.shadowBlur = 15;
-
-        ctx.lineWidth = 8;
 
         ctx.beginPath();
+
 
         ctx.arc(
-            113,
-            -20,
-            34,
-            0.25,
-            2.8
-        );
-
-        ctx.stroke();
-
-        ctx.restore();
-
-
-        /*
-            Swing trail.
-        */
-
-        ctx.save();
-
-        ctx.globalAlpha =
-            0.3;
-
-        ctx.strokeStyle =
-            "#ff3030";
-
-        ctx.lineWidth = 3;
-
-        ctx.beginPath();
-
-        ctx.arc(
-            forecast.x,
-            forecast.y,
-            125,
-            -1.8,
+            forecast.worldX,
+            forecast.worldY,
+            128,
+            -2,
             angle
         );
 
+
         ctx.stroke();
+
 
         ctx.restore();
     }
+}
 
 
-    /* ======================================================
-       EFFECTS
-    ====================================================== */
+/* ==========================================================
+   EFFECT RENDERER
+========================================================== */
 
-    function drawEffects(now) {
-        for (
-            const effect of effects
+function drawEffects(now) {
+
+    for (
+        const effect of effects
+    ) {
+
+        const ratio =
+            effect.maxLife
+                ? clamp(
+                    effect.life /
+                    effect.maxLife,
+                    0,
+                    1
+                )
+                : 1;
+
+
+        ctx.save();
+
+
+        /* DODGE AFTERIMAGE */
+
+        if (
+            effect.type ===
+            "dodge_afterimage"
         ) {
-            const ratio =
-                effect.maxLife
-                    ? effect.life /
-                      effect.maxLife
-                    : effect.life;
 
-            ctx.save();
+            ctx.globalAlpha =
+                ratio * 0.5;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.lineWidth = 2;
+
+
+            let offsetX = 0;
+            let offsetY = 0;
 
 
             if (
-                effect.type ===
-                "dodgeAfterimage"
+                effect.animation ===
+                "dodge_left"
             ) {
-                ctx.globalAlpha =
-                    Math.max(
-                        0,
-                        ratio * 0.55
-                    );
+                offsetX = -30;
+            }
 
-                ctx.strokeStyle =
-                    "#ff3030";
 
-                ctx.lineWidth = 2;
+            else if (
+                effect.animation ===
+                "dodge_right"
+            ) {
+                offsetX = 30;
+            }
 
-                const offset =
-                    effect.direction *
-                    34 *
+
+            else if (
+                effect.animation ===
+                "dodge_up"
+            ) {
+                offsetY = -25;
+            }
+
+
+            else if (
+                effect.animation ===
+                "dodge_down"
+            ) {
+                offsetY = 25;
+            }
+
+
+            ctx.strokeRect(
+
+                effect.x -
+                    22 +
+                    offsetX *
                     (
                         1 -
                         ratio
-                    );
+                    ),
 
-                ctx.strokeRect(
-                    effect.x -
-                        22 +
-                        offset,
-
-                    effect.y -
-                        31,
-
-                    44,
-                    62
-                );
-            }
-
-
-            else if (
-                effect.type ===
-                "predictionLine"
-            ) {
-                ctx.globalAlpha =
-                    Math.max(
-                        0,
-                        ratio
-                    );
-
-                ctx.strokeStyle =
-                    "#ffffff";
-
-                ctx.lineWidth = 2;
-
-                ctx.setLineDash([
-                    4,
-                    4
-                ]);
-
-                ctx.beginPath();
-
-                ctx.moveTo(
-                    effect.x,
-                    effect.y
-                );
-
-                ctx.lineTo(
-                    effect.targetX,
-                    effect.targetY
-                );
-
-                ctx.stroke();
-            }
-
-
-            else if (
-                effect.type ===
-                "muzzleBurst"
-            ) {
-                ctx.globalAlpha =
-                    ratio;
-
-                ctx.fillStyle =
-                    "#ff3030";
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    effect.x,
-                    effect.y,
-                    10 +
+                effect.y -
+                    31 +
+                    offsetY *
                     (
                         1 -
                         ratio
-                    ) *
-                    20,
-                    0,
-                    Math.PI * 2
-                );
+                    ),
 
-                ctx.fill();
-            }
+                44,
+                62
 
-
-            else if (
-                effect.type ===
-                "eyeFlash"
-            ) {
-                ctx.globalAlpha =
-                    ratio;
-
-                ctx.strokeStyle =
-                    "#ff3030";
-
-                ctx.shadowColor =
-                    "#ff3030";
-
-                ctx.shadowBlur = 20;
-
-                ctx.lineWidth = 3;
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    effect.x,
-                    effect.y,
-                    12 +
-                    (
-                        1 -
-                        ratio
-                    ) *
-                    30,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-            }
-
-
-            else if (
-                effect.type ===
-                "phaseBurst"
-            ) {
-                ctx.globalAlpha =
-                    ratio;
-
-                ctx.strokeStyle =
-                    "#ff3030";
-
-                ctx.shadowColor =
-                    "#ff3030";
-
-                ctx.shadowBlur = 25;
-
-                ctx.lineWidth = 4;
-
-                const radius =
-                    20 +
-                    (
-                        1 -
-                        ratio
-                    ) *
-                    100;
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    effect.x,
-                    effect.y,
-                    radius,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-            }
-
-
-            else if (
-                effect.type ===
-                "nullBurst"
-            ) {
-                ctx.globalAlpha =
-                    ratio;
-
-                ctx.strokeStyle =
-                    "#ffffff";
-
-                ctx.lineWidth = 4;
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    effect.x,
-                    effect.y,
-                    25 +
-                    (
-                        1 -
-                        ratio
-                    ) *
-                    150,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.stroke();
-            }
-
-
-            else if (
-                effect.type ===
-                "fakeMarker"
-            ) {
-                ctx.globalAlpha =
-                    ratio;
-
-                ctx.strokeStyle =
-                    "#ff3030";
-
-                ctx.setLineDash([
-                    5,
-                    5
-                ]);
-
-                ctx.strokeRect(
-                    effect.x - 25,
-                    effect.y - 25,
-                    50,
-                    50
-                );
-            }
-
-
-            else if (
-                effect.type ===
-                "hit"
-            ) {
-                ctx.globalAlpha =
-                    Math.min(
-                        1,
-                        ratio * 3
-                    );
-
-                ctx.strokeStyle =
-                    "#ffffff";
-
-                ctx.lineWidth = 3;
-
-                ctx.beginPath();
-
-                ctx.moveTo(
-                    effect.x - 15,
-                    effect.y - 15
-                );
-
-                ctx.lineTo(
-                    effect.x + 15,
-                    effect.y + 15
-                );
-
-                ctx.moveTo(
-                    effect.x + 15,
-                    effect.y - 15
-                );
-
-                ctx.lineTo(
-                    effect.x - 15,
-                    effect.y + 15
-                );
-
-                ctx.stroke();
-            }
-
-
-            ctx.restore();
+            );
         }
+
+
+        /* DODGE FLASH */
+
+        else if (
+            effect.type ===
+            "dodge_flash"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                15 +
+                (
+                    1 -
+                    ratio
+                ) *
+                30,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* MUZZLE FLASH */
+
+        else if (
+            effect.type ===
+            "muzzle_flash"
+        ) {
+
+            ctx.translate(
+                effect.x,
+                effect.y
+            );
+
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.fillStyle =
+                "#ff3030";
+
+
+            const size =
+                effect.variant ===
+                "shotgun"
+                    ? 18
+                    : effect.variant ===
+                      "precision"
+                        ? 14
+                        : 10;
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                size,
+                0
+            );
+
+
+            ctx.lineTo(
+                -size * 0.5,
+                -size * 0.4
+            );
+
+
+            ctx.lineTo(
+                -size * 0.15,
+                0
+            );
+
+
+            ctx.lineTo(
+                -size * 0.5,
+                size * 0.4
+            );
+
+
+            ctx.closePath();
+
+
+            ctx.fill();
+        }
+
+
+        /* DMR PREDICTION */
+
+        else if (
+            effect.type ===
+            "dmr_prediction"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+
+            ctx.lineWidth = 2;
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                effect.x,
+                effect.y
+            );
+
+
+            ctx.lineTo(
+                effect.targetX,
+                effect.targetY
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* IMPACT */
+
+        else if (
+            effect.type ===
+            "impact"
+        ) {
+
+            ctx.translate(
+                effect.x,
+                effect.y
+            );
+
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                effect.variant ===
+                "scythe"
+                    ? "#ff3030"
+                    : "#ffffff";
+
+
+            ctx.lineWidth = 3;
+
+
+            const size =
+                8 +
+                (
+                    1 -
+                    ratio
+                ) *
+                20;
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                -size,
+                -size
+            );
+
+
+            ctx.lineTo(
+                size,
+                size
+            );
+
+
+            ctx.moveTo(
+                size,
+                -size
+            );
+
+
+            ctx.lineTo(
+                -size,
+                size
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* EYE */
+
+        else if (
+            effect.type ===
+            "eye_activation"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.shadowColor =
+                "#ff3030";
+
+
+            ctx.shadowBlur = 22;
+
+
+            ctx.lineWidth = 3;
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                12 +
+                (
+                    1 -
+                    ratio
+                ) *
+                35,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* NULL */
+
+        else if (
+            effect.type ===
+            "null_wave"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+
+            ctx.lineWidth = 4;
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                20 +
+                (
+                    1 -
+                    ratio
+                ) *
+                180,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* CROSSHAIR */
+
+        else if (
+            effect.type ===
+            "crosshair"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.lineWidth = 2;
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                30,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                effect.x - 45,
+                effect.y
+            );
+
+
+            ctx.lineTo(
+                effect.x + 45,
+                effect.y
+            );
+
+
+            ctx.moveTo(
+                effect.x,
+                effect.y - 45
+            );
+
+
+            ctx.lineTo(
+                effect.x,
+                effect.y + 45
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* FALSE FUTURE MARKER */
+
+        else if (
+            effect.type ===
+            "false_future_marker"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.setLineDash([
+                6,
+                5
+            ]);
+
+
+            ctx.strokeRect(
+                effect.x - 30,
+                effect.y - 30,
+                60,
+                60
+            );
+        }
+
+
+        /* FUTURE BREAK */
+
+        else if (
+            effect.type ===
+            "future_break"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+
+            ctx.lineWidth = 2;
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                effect.x,
+                effect.y
+            );
+
+
+            ctx.lineTo(
+                effect.targetX,
+                effect.targetY
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* INEVITABLE START */
+
+        else if (
+            effect.type ===
+            "inevitable_start"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.shadowColor =
+                "#ff3030";
+
+
+            ctx.shadowBlur = 25;
+
+
+            ctx.lineWidth = 4;
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                30 +
+                (
+                    1 -
+                    ratio
+                ) *
+                130,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* INEVITABLE LOCK */
+
+        else if (
+            effect.type ===
+            "inevitable_lock"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.lineWidth = 3;
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                26,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+
+
+            ctx.strokeRect(
+                effect.x - 18,
+                effect.y - 18,
+                36,
+                36
+            );
+        }
+
+
+        /* PHASE CHANGE */
+
+        else if (
+            effect.type ===
+            "phase_change"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.shadowColor =
+                "#ff3030";
+
+
+            ctx.shadowBlur = 25;
+
+
+            ctx.lineWidth = 5;
+
+
+            const radius =
+                25 +
+                (
+                    1 -
+                    ratio
+                ) *
+                130;
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                radius,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        /* FREEZE */
+
+        else if (
+            effect.type ===
+            "freeze_lock"
+        ) {
+
+            ctx.globalAlpha =
+                ratio;
+
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+
+            ctx.lineWidth = 2;
+
+
+            ctx.strokeRect(
+                effect.x - 20,
+                effect.y - 20,
+                40,
+                40
+            );
+        }
+
+
+        /* ILLUSION BURST */
+
+        else if (
+            effect.type ===
+            "illusion_burst"
+        ) {
+
+            ctx.globalAlpha =
+                ratio * 0.5;
+
+
+            ctx.strokeStyle =
+                "#ff3030";
+
+
+            ctx.beginPath();
+
+
+            ctx.arc(
+                effect.x,
+                effect.y,
+                20 +
+                (
+                    1 -
+                    ratio
+                ) *
+                80,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.stroke();
+        }
+
+
+        ctx.restore();
+    }
+}
+
+
+/* ==========================================================
+   HUD
+========================================================== */
+
+function updateEnemyHUD() {
+
+    const fill =
+        document.getElementById(
+            "enemyHPFill"
+        );
+
+
+    const text =
+        document.getElementById(
+            "enemyHPText"
+        );
+
+
+    const percent =
+        clamp(
+            protagonist.hp /
+            protagonist.maxHp *
+            100,
+            0,
+            100
+        );
+
+
+    if (fill) {
+
+        fill.style.width =
+            `${percent}%`;
     }
 
 
-    function createHitEffect(
-        x,
-        y
-    ) {
-        effects.push({
-            type: "hit",
+    if (text) {
 
-            x,
-            y,
+        text.textContent =
+            `${Math.ceil(
+                protagonist.hp
+            )} / ${protagonist.maxHp}`;
+    }
+}
 
-            life: 0.25,
-            maxLife: 0.25
-        });
+
+function updateStaminaHUD(
+    temporaryText = null
+) {
+
+    const fill =
+        document.getElementById(
+            "staminaFill"
+        );
+
+
+    const text =
+        document.getElementById(
+            "staminaText"
+        );
+
+
+    const status =
+        document.getElementById(
+            "dodgeStatus"
+        );
+
+
+    const percent =
+        clamp(
+            forecast.stamina /
+            forecast.maxStamina *
+            100,
+            0,
+            100
+        );
+
+
+    if (fill) {
+
+        fill.style.width =
+            `${percent}%`;
     }
 
 
-    /* ======================================================
-       HUD
-    ====================================================== */
+    if (text) {
 
-    function updateEnemyHUD() {
-        const fill =
-            document.getElementById(
-                "enemyHPFill"
-            );
-
-        const text =
-            document.getElementById(
-                "enemyHPText"
-            );
-
-        const percent =
-            (
-                enemy.hp /
-                enemy.maxHP
-            ) *
-            100;
-
-        if (fill) {
-            fill.style.width =
-                `${percent}%`;
-        }
-
-        if (text) {
-            text.textContent =
-                `${Math.ceil(
-                    enemy.hp
-                )} / ${enemy.maxHP}`;
-        }
+        text.textContent =
+            `${Math.ceil(
+                forecast.stamina
+            )} / ${forecast.maxStamina}`;
     }
 
 
-    function updateStaminaHUD(
-        statusText = null
-    ) {
-        const fill =
-            document.getElementById(
-                "staminaFill"
-            );
+    if (status) {
 
-        const text =
-            document.getElementById(
-                "staminaText"
-            );
+        if (temporaryText) {
 
-        const status =
-            document.getElementById(
-                "dodgeStatus"
-            );
-
-        const percent =
-            (
-                stamina /
-                STAMINA_MAX
-            ) *
-            100;
-
-        if (fill) {
-            fill.style.width =
-                `${percent}%`;
+            status.textContent =
+                temporaryText;
         }
 
-        if (text) {
-            text.textContent =
-                `${Math.ceil(
-                    stamina
-                )} / ${STAMINA_MAX}`;
+
+        else if (
+            forecast.stamina <
+            BASE_DODGE_COST
+        ) {
+
+            status.textContent =
+                "AUTO-DODGE EXHAUSTED";
         }
 
-        if (status) {
-            if (statusText) {
-                status.textContent =
-                    statusText;
-            }
 
-            else if (
-                stamina <
-                BASE_DODGE_COST
-            ) {
-                status.textContent =
-                    "AUTO-DODGE EXHAUSTED";
-            }
+        else if (
+            turn ===
+            TURN.PROTAGONIST
+        ) {
 
-            else if (
-                turn ===
-                TURN.ENEMY
-            ) {
-                status.textContent =
-                    "AUTO-DODGE ACTIVE";
-            }
+            status.textContent =
+                "AUTO-DODGE ACTIVE";
+        }
 
-            else {
-                status.textContent =
-                    "AUTO-DODGE READY";
-            }
+
+        else {
+
+            status.textContent =
+                "AUTO-DODGE READY";
         }
     }
+}
 
 
-    function updateTurnHUD() {
-        const banner =
-            document.getElementById(
-                "turnBanner"
-            );
+function updateTurnHUD() {
 
-        if (!banner) return;
+    const banner =
+        document.getElementById(
+            "turnBanner"
+        );
+
+
+    const combat =
+        document.getElementById(
+            "combatStatusText"
+        );
+
+
+    if (banner) {
 
         switch (turn) {
+
             case TURN.FORECAST:
+
                 banner.textContent =
                     "FORECAST TURN";
+
                 break;
 
-            case TURN.ENEMY:
+
+            case TURN.PROTAGONIST:
+
                 banner.textContent =
-                    "AUTO-DODGE";
+                    "PROTAGONIST TURN";
+
                 break;
+
 
             case TURN.TRANSITION:
+
                 banner.textContent =
                     "PHASE SHIFT";
+
                 break;
+
 
             case TURN.ENDED:
+
                 banner.textContent =
                     "BATTLE END";
+
                 break;
         }
     }
 
 
-    /* ======================================================
-       FORECAST ABILITY
-    ====================================================== */
+    if (combat) {
 
-    function activatePrediction(
-        duration = 1800
+        combat.textContent =
+            turn ===
+            TURN.PROTAGONIST
+                ? "AUTO-DODGE"
+                : turn ===
+                  TURN.FORECAST
+                    ? "ATTACK"
+                    : "WAIT";
+    }
+}
+
+
+/* ==========================================================
+   FORECAST ABILITIES
+
+   PREDICT
+   DEEP FORECAST
+   ABSOLUTE FORECAST
+
+   Existing game.js can pass either a number or a mode.
+========================================================== */
+
+function activatePrediction(
+    value = 1800
+) {
+
+    let duration;
+
+
+    if (
+        typeof value ===
+        "number"
     ) {
-        predictionUntil =
-            Math.max(
-                predictionUntil,
-                performance.now() +
-                duration
-            );
+
+        duration = value;
     }
 
 
-    /* ======================================================
-       MESSAGE EVENT
-    ====================================================== */
+    else {
 
-    function message(text) {
-        window.dispatchEvent(
-            new CustomEvent(
-                "forecast-message",
-                {
-                    detail: {
-                        message: text
-                    }
-                }
-            )
-        );
-    }
+        switch (value) {
 
+            case "deep":
+                duration = 3200;
+                break;
 
-    /* ======================================================
-       HELPERS
-    ====================================================== */
+            case "absolute":
+                duration = 5200;
+                break;
 
-    function circlesTouch(
-        ax,
-        ay,
-        ar,
-
-        bx,
-        by,
-        br
-    ) {
-        const dx =
-            ax - bx;
-
-        const dy =
-            ay - by;
-
-        const radius =
-            ar + br;
-
-        return (
-            dx * dx +
-            dy * dy <=
-            radius * radius
-        );
-    }
-
-
-    function distancePointToSegment(
-        px,
-        py,
-
-        x1,
-        y1,
-
-        x2,
-        y2
-    ) {
-        const vx =
-            x2 - x1;
-
-        const vy =
-            y2 - y1;
-
-        const wx =
-            px - x1;
-
-        const wy =
-            py - y1;
-
-        const lengthSquared =
-            vx * vx +
-            vy * vy;
-
-        if (
-            lengthSquared === 0
-        ) {
-            return Math.hypot(
-                px - x1,
-                py - y1
-            );
+            default:
+                duration = 1800;
+                break;
         }
+    }
 
-        let t =
-            (
-                wx * vx +
-                wy * vy
-            ) /
-            lengthSquared;
 
-        t = clamp(
+    states.predictionUntil =
+        Math.max(
+
+            states.predictionUntil,
+
+            performance.now() +
+            duration
+
+        );
+
+
+    Animation.play(
+        "eye_activate",
+        350
+    );
+
+
+    effects.push({
+
+        type:
+            "eye_activation",
+
+        x:
+            forecast.worldX,
+
+        y:
+            forecast.worldY - 15,
+
+        life: 0.4,
+        maxLife: 0.4
+
+    });
+}
+
+
+/* ==========================================================
+   MESSAGE
+========================================================== */
+
+function message(text) {
+
+    window.dispatchEvent(
+
+        new CustomEvent(
+            "forecast-message",
+            {
+                detail: {
+                    message: text
+                }
+            }
+        )
+
+    );
+}
+
+
+/* ==========================================================
+   COMPATIBILITY
+
+   Old UI may still call Battle.setMovement().
+   It intentionally does NOTHING.
+
+   Forecast has NO manual movement.
+========================================================== */
+
+function setMovement() {}
+
+
+/* ==========================================================
+   HELPERS
+========================================================== */
+
+function circlesTouch(
+    ax,
+    ay,
+    ar,
+
+    bx,
+    by,
+    br
+) {
+
+    const dx =
+        ax - bx;
+
+
+    const dy =
+        ay - by;
+
+
+    const radius =
+        ar + br;
+
+
+    return (
+        dx * dx +
+        dy * dy <=
+        radius * radius
+    );
+}
+
+
+function distancePointToSegment(
+    px,
+    py,
+
+    x1,
+    y1,
+
+    x2,
+    y2
+) {
+
+    const vx =
+        x2 - x1;
+
+
+    const vy =
+        y2 - y1;
+
+
+    const wx =
+        px - x1;
+
+
+    const wy =
+        py - y1;
+
+
+    const lengthSquared =
+        vx * vx +
+        vy * vy;
+
+
+    if (
+        lengthSquared === 0
+    ) {
+
+        return Math.hypot(
+            px - x1,
+            py - y1
+        );
+    }
+
+
+    let t =
+        (
+            wx * vx +
+            wy * vy
+        ) /
+        lengthSquared;
+
+
+    t =
+        clamp(
             t,
             0,
             1
         );
 
-        const closestX =
-            x1 + t * vx;
 
-        const closestY =
-            y1 + t * vy;
-
-        return Math.hypot(
-            px - closestX,
-            py - closestY
-        );
-    }
+    const closestX =
+        x1 +
+        t * vx;
 
 
-    function clamp(
-        value,
+    const closestY =
+        y1 +
+        t * vy;
+
+
+    return Math.hypot(
+        px - closestX,
+        py - closestY
+    );
+}
+
+
+function clamp(
+    value,
+    min,
+    max
+) {
+
+    return Math.max(
         min,
-        max
-    ) {
-        return Math.max(
-            min,
-            Math.min(
-                max,
-                value
-            )
-        );
-    }
+        Math.min(
+            max,
+            value
+        )
+    );
+}
 
 
-    function random(
-        min,
-        max
-    ) {
+function random(
+    min,
+    max
+) {
+
+    return (
+        min +
+        Math.random() *
+        (
+            max -
+            min
+        )
+    );
+}
+
+
+/* ==========================================================
+   PUBLIC API
+========================================================== */
+
+return {
+
+    init,
+
+    reset,
+
+    setMovement,
+
+
+    getTurn() {
+        return turn;
+    },
+
+
+    isForecastTurn() {
         return (
-            min +
-            Math.random() *
-            (
-                max -
-                min
-            )
+            turn ===
+            TURN.FORECAST
         );
-    }
+    },
 
 
-    /* ======================================================
-       PUBLIC API
-    ====================================================== */
+    getStamina() {
+        return forecast.stamina;
+    },
 
-    return {
-        init,
-        reset,
 
-        /*
-            Compatibility only.
-            Does NOT move Forecast.
-        */
+    getMaxStamina() {
+        return forecast.maxStamina;
+    },
 
-        setMovement,
 
-        getTurn,
-        isForecastTurn,
+    activatePrediction
 
-        getStamina() {
-            return stamina;
-        },
-
-        getMaxStamina() {
-            return STAMINA_MAX;
-        },
-
-        activatePrediction
-    };
+};
 
 })();
